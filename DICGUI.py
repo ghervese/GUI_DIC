@@ -40,7 +40,7 @@ class muDIC_GUI:
         self.root = tk.Tk()
         self.root.title("User Interface for pre-processing images and DIC based on muDIC class")
         self.fig_photo_first = None
-        self.rect = None
+        self.source_selection_path = None
 
     plt.rcParams['figure.figsize'] = [0.1, 0.1]
 
@@ -64,38 +64,26 @@ class muDIC_GUI:
         """
 
         self.source_selection_path = filedialog.askdirectory(title='Select the Directory hosting the images')
-   
-    def select_output_folder(self):
-        """
-        This method is a dialog box to get the path for output results
-        """
-        self.output_selection_path = filedialog.askdirectory(title='Select the Output Directory')
+        self.nb_files_max = len([entry for entry in os.listdir(self.source_selection_path)])
+        print('nbre de fichiers',self.nb_files_max)
+        
+#     def select_output_images_folder(self):
+#         """
+#         This method is a dialog box to get the path accessing to the input images
+#         """
 
-    def get_corner1(self,event):
-        # print('you pressed for coord of point :', event.button, np.round(event.xdata), np.round(event.ydata))
-        self.corner1=(np.array([np.round(event.xdata),np.round(event.ydata)]))
-        # print(self.coord_window)
-#         if len(self.coord_window)==2:
-# #            self.center_ROI = np.round(np.abs((self.coord_window[1]-self.coord_window[0]))/2.)
-#             self.longx_ROI = np.round(np.abs((self.coord_window[1][0]-self.coord_window[0][0])))
-#             self.longy_ROI = np.round(np.abs((self.coord_window[1][1]-self.coord_window[0][1])))
-#             # r = Rectangle(tuple(self.center_ROI), self.longx_ROI, self.longy_ROI,
-#             #     edgecolor='red', facecolor='none')
-#             self.preview_selection.subplots().add_patch(Rectangle(tuple(self.coord_window[0]),width=self.longx_ROI,height=self.longy_ROI, edgecolor="red", fill=False))
-    def get_corner2(self,event):
-        # print('you pressed for coord of point :', event.button, np.round(event.xdata), np.round(event.ydata))
-        self.corner2=(np.array([np.round(event.xdata),np.round(event.ydata)]))
+# #        self.output_selection_path = filedialog.askdirectory(title='Select the output Directory for images cut on ROI')
+# #        self.output_selection_path = os.path.join(self.output_selection_path, 'ROI_crop')
+# #        os.makedirs(self.output_selection_path)
 
-
-    # def line_select_callback(self,eclick, erelease):
-    #     x1, y1 = eclick.xdata, eclick.ydata
-    #     x2, y2 = erelease.xdata, erelease.ydata
-
-    #     rect = Rectangle( (min(x1,x2),min(y1,y2)), np.abs(x1-x2), np.abs(y1-y2) ,facecolor='None',edgecolor='Red')
-    #     print(rect.get_corners())
-    #     ax=self.preview_selection.gca()
-    #     ax.add_patch(rect)
-
+#         name = file_name.get() # took from the input
+#         path = os.path.join(dir, name) # dir is a directory taken from the filedialog
+#         default_folder = os.path.join(self.output_selection_path, 'ROI_crop')
+#         if os.path.exists(default_folder) == True: #Only creates a new folder when non-existing
+#             pass
+#         else:
+#             os.mkdir(default_folder)
+#         file_directory = filedialog.askdirectory(title='Select the output Directory for images cut on ROI', initialdir = default_folder)
 
 
 
@@ -106,15 +94,13 @@ class muDIC_GUI:
         print('entre dans la selection')
         # x1, y1 = eclick.xdata, eclick.ydata
         # x2, y2 = erelease.xdata, erelease.ydata
-        self.coin_1 = np.round([eclick.xdata, eclick.ydata])
-        self.coin_2 = np.round([erelease.xdata, erelease.ydata])
+        self.corner_1 = np.round([eclick.xdata, eclick.ydata])
+        self.corner_2 = np.round([erelease.xdata, erelease.ydata])
+        self.value_coord_corner1.configure(text=str(np.int64(self.corner_1)))
+        self.value_coord_corner2.configure(text=str(np.int64(self.corner_2)))
+        print('First corner coordinates in px:',self.corner_1)
 
-    #    rect = Rectangle( (min(x1,x2),min(y1,y2)), np.abs(x1-x2), np.abs(y1-y2) ,facecolor='None',edgecolor='Red')
-    #     print(rect.get_corners())
-    #     ax=self.preview_selection.gca()
-    #    self.ax.add_patch(rect)
-        print('First corner coordinates in px:',self.coin_1)
-        print('Second corner coordinates in px:',self.coin_2)
+        print('Second corner coordinates in px:',self.corner_2)
 
     def select_ROI_rectangle(self):
         plt.close('all')
@@ -141,29 +127,20 @@ class muDIC_GUI:
         It converts it into a hypermatrix with pixels in row and columns and 4 digits corresponding to the Bayer matrix value
         If the image is in true gray level, this is not a hypermatrix but a "simple" matrix with 1 digit for each pixel location.
         """
-        # image = self.source_selection_path +'/' +self.prefix_entry.get() + str(self.num_images) + '1' + self.format_image
-        # image = mpimg.imread(image)
         self.preview = mpimg.imread(self.source_selection_path +'/' +self.prefix_entry.get() + str(self.num_images) + '1' + self.format_image)
 
         plt.clf()
         self.preview_selection = plt.figure(figsize=(15,2))
-#        self.ax = self.preview_selection.add_subplot()
+
         self.ax = self.preview_selection.subplots()
         self.ax.imshow(self.preview,cmap='binary')
         self.ax.grid(color='black',ls='solid')
 
         if self.fig_photo_first is not None:
             self.fig_photo_first.get_tk_widget().destroy()
-        # self.fig_photo_first = FigureCanvasTkAgg(self.preview_selection, master=self.canvas_FOV_ROI)
         self.fig_photo_first = FigureCanvasTkAgg(self.preview_selection, master=self.canvas_FOV_ROI)
         self.fig_photo_first.draw()
         self.fig_photo_first.get_tk_widget().pack()
-
-        # self.zone_select_ROI = tk.Canvas(self.fig_photo_first)
-        # self.zone_select_ROI.bind("<Button-1>", self.on_button_pressed)
-        # self.zone_select_ROI.mainloop()
-        # self.fig_photo_first.bind("<Button-1>", self.on_button_pressed)
-        # self.fig_photo_first.mainloop()
 
 
     def plot_ROI_on_fig(self):
@@ -171,15 +148,49 @@ class muDIC_GUI:
         self.corner2 = np.array(self.corner2_entry.get())
         print(np.shape(self.corner1))
         print(np.shape(self.corner2))
-        # print((self.corner2*2.))
-        # r = Rectangle(tuple([self.tile_coordinates_center[i].ra.degree,self.tile_coordinates_center[i].dec.degree]), self.tile_fov*1.4, self.tile_fov,
-        # edgecolor='red', facecolor='none',
-        # transform=ax.get_transform('world')
-        # )
-        # r = Rectangle(tuple(AJOUTER LES COORDONEES DU CENTRE A CALCULER), LARGEUR, LONGUEUR,
-        # edgecolor='red', facecolor='none')
-        # self.fig_photo_first.add_patch(r)
-  
+
+          
+    def crop_images_to_ROI(self):
+        self.nb_images_to_crop = np.int64(self.prepare_resize_ROI_files_entry.get())
+        for i in range(1,self.nb_images_to_crop+1):
+            if len(self.num_images)==1:
+                num_image ="{:02n}".format(i)
+            elif len(self.num_images)==2:
+                num_image ="{:03n}".format(i)
+            elif len(self.num_images)==3:
+                num_image ="{:04n}".format(i)
+            elif len(self.num_images)==4:
+                num_image ="{:05n}".format(i)
+            elif len(self.num_images)==5:
+                num_image ="{:06n}".format(i)
+            elif len(self.num_images)==6:
+                num_image ="{:07n}".format(i)
+
+            #num_image ="{:0"+str(self.num_images+1)+"n}".format(i)
+            #nom_image = "'"+repertoire+nom_fic_base+num_image+'.tiff'+"'"
+            #print(nom_image)
+            image_entree = (self.source_selection_path +'/' +self.prefix_entry.get() +num_image + self.format_image)
+            
+            image = Image.open(image_entree) # On acquiert l'image
+            image_input = np.asarray(image)
+
+            x_min = np.int64(np.round(min(self.corner_1[1],self.corner_2[1])))
+            x_max = np.int64(np.round(max(self.corner_1[1],self.corner_2[1])))
+            y_min = np.int64(np.round(min(self.corner_1[0],self.corner_2[0])))
+            y_max = np.int64(np.round(max(self.corner_1[0],self.corner_2[0])))
+
+            image_cut_on_ROI = image_input[x_min:x_max,y_min:y_max] 
+
+            Image.fromarray(image_cut_on_ROI).save(self.output_path+'/ROI' + self.prefix_ROI_files_entry.get() +num_image + self.format_image)
+
+    def create_output_folder(self):
+        self.output_path = os.path.join(self.source_selection_path, 'ROI_cropped_images') # dir is a directory taken from the filedialog
+        if os.path.exists(self.output_path) == True: #Only creates a new folder when non-existing
+            pass
+        else:
+            os.mkdir(self.output_path)
+        print(self.output_path)
+
 
 
     def create_gui(self):
@@ -213,7 +224,7 @@ class muDIC_GUI:
         preprocessing_frame = ttk.LabelFrame(tab1, text='Pre-processing')
         preprocessing_frame.pack(expand=1, fill='both', padx=2, pady=2)
 
-        chose_path_button = ttk.Button(preprocessing_frame, text="Select the location folder of the images", command=self.select_images_folder)
+        chose_path_button = ttk.Button(preprocessing_frame, text="Select the folder location of the images", command=self.select_images_folder)
         chose_path_button.grid(row=0, column=0, columnspan=2, padx=5, pady=5)
 
         quit_button = ttk.Button(preprocessing_frame,text = "Quit", command = self.Close,width=5)
@@ -284,13 +295,66 @@ class muDIC_GUI:
         ROI_frame.pack(expand=1, fill='both', padx=2, pady=2)
 
         select_ROI_button = ttk.Button(ROI_frame,text = "On-screen selection of the ROI", command = self.select_ROI_rectangle)
-        select_ROI_button.grid(row=0, column=0,columnspan=2, padx=5, pady=5)
+        select_ROI_button.grid(row=0, column=0, padx=5, pady=5)
 
-        show_ROI_button = ttk.Button(ROI_frame,text = "Show selected ROI", command = self.plot_ROI_on_fig)
-        show_ROI_button.grid(row=2, column=0,columnspan=2, padx=5, pady=5)
+        # show_ROI_button = ttk.Button(ROI_frame,text = "Apply ROI selection", command = self.plot_ROI_on_fig)
+        # show_ROI_button.grid(row=0, column=1,columnspan=2, padx=5, pady=5)
 
-        resize_ROI_button = ttk.Button(ROI_frame,text = "Resize images to fit ROI", command = self.Close)
-        resize_ROI_button.grid(row=2, column=3,columnspan=2, padx=5, pady=5)
+        label_coord_corner1 = ttk.Label(ROI_frame, text='Coordinates in pixels of corner 1:')
+        label_coord_corner1.grid(row=1, column=0, padx=5, pady=5)
+        self.value_coord_corner1 = ttk.Label(ROI_frame, text='No coord. yet')
+        self.value_coord_corner1.grid(row=1, column=1, padx=5, pady=5)
+        
+        # self.prefix_entry.insert(0, 'Gauche_Droite-')
+        # self.prefix_entry.grid(row=1, column=3, padx=5, pady=5)
+
+        label_coord_corner2 = ttk.Label(ROI_frame, text='Coordinates in pixels of corner 2:')
+        label_coord_corner2.grid(row=1, column=2, padx=4, pady=5)
+        self.value_coord_corner2 = ttk.Label(ROI_frame, text='No coord. yet')
+        self.value_coord_corner2.grid(row=1, column=3, padx=5, pady=5)
+
+        # def get_number_of_files():
+        #     if self.source_selection_path is not None:
+        #         var = tk.IntVar()
+        #         #nb_files_max = len([entry for entry in os.listdir(self.source_selection_path)])
+        #         scale = tk.Scale(ROI_frame, variable = var ,from_=1, to=self.nb_files_max,orient='horizontal',label='Number of files to crop',length=200)
+        #         scale.grid(row=1,column=3, columnspan=2,padx=5, pady=5)
+        #         self.nb_images_to_crop = var.get()
+
+        # chose_path_button = ttk.Button(ROI_frame, text="Select the output folder location", command=lambda:[self.select_output_images_folder(),get_number_of_files()])
+        # chose_path_button.grid(row=1, column=0, columnspan=2, padx=5, pady=5)
+   
+
+
+        #prepare_resize_ROI_button = tk.Button(ROI_frame,text = "Generate default output directory", command=lambda:[self.create_output_folder, get_number_of_files()])
+        prepare_resize_ROI_button1 = ttk.Button(ROI_frame,text = "Generate default output directory", command=self.create_output_folder)
+        prepare_resize_ROI_button1.grid(row=2, column=0, padx=5, pady=5)
+
+        # prepare_resize_ROI_button2 = ttk.Button(ROI_frame,text = "Number of files to be cropped", command=get_number_of_files())
+        # prepare_resize_ROI_button2.grid(row=2, column=3,columnspan=2, padx=5, pady=5)
+
+        # Text area to define the prefix of the images
+        prepare_resize_ROI_files = ttk.Label(ROI_frame, text='Number of files to crop:')
+        prepare_resize_ROI_files.grid(row=2, column=1, padx=5, pady=5)
+        self.prepare_resize_ROI_files_entry = ttk.Entry(ROI_frame)
+        self.prepare_resize_ROI_files_entry.insert(0, 2)
+        self.prepare_resize_ROI_files_entry.grid(row=2, column=2, padx=5, pady=5)
+
+
+
+
+
+        # Text area to define the prefix of the images
+        prefix_ROI_files = ttk.Label(ROI_frame, text='User name for images:')
+        prefix_ROI_files.grid(row=2, column=3, padx=5, pady=5)
+        self.prefix_ROI_files_entry = ttk.Entry(ROI_frame)
+        self.prefix_ROI_files_entry.insert(4, '_dynamic_beam_test_')
+        self.prefix_ROI_files_entry.grid(row=2, column=4, padx=5, pady=5)
+
+
+
+        resize_ROI_button = ttk.Button(ROI_frame,text = "Export images cropped on the ROI", command=self.crop_images_to_ROI)
+        resize_ROI_button.grid(row=2, column=5,columnspan=2, padx=5, pady=5)
 
 
 # Instanciation de l'application et exécution
