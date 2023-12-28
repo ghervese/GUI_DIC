@@ -290,13 +290,13 @@ class muDIC_GUI:
 
     def DIC_generate_settings(self):
         self.DIC_settings = dic.DICInput(self.mesh,self.image_stack)
-        self.DIC_settings.ref_update = [np.int64(self.first_image_for_DIC_entry.get())]
+        self.DIC_settings.ref_update = tuple(self.first_image_for_DIC_entry.get())
         self.DIC_settings.max_nr_im = np.int64(self.first_image_for_DIC_entry.get())-np.int64(self.last_image_for_DIC_entry.get())+1
         self.DIC_settings.maxit = np.int64(self.iteration.get())
-        self.DIC_settings.tom = np.int64(self.convergence.get())
+        self.DIC_settings.tom = np.float64(self.convergence.get())
         self.DIC_settings.interpolation_order = np.int64(self.order_interp.get())
         self.DIC_settings.store_internals=self.temp_store_internals
-        
+
     def prepare_DIC_analysis(self):
         self.DIC_job = dic.DICAnalysis(self.DIC_settings)
 
@@ -700,21 +700,21 @@ class muDIC_GUI:
         DIC_solver_frame.pack(expand=1, fill='both', padx=2, pady=2)
 
         first_image_for_DIC = ttk.Label(DIC_solver_frame, text='First (reference) image of the DIC solver:')
-        first_image_for_DIC.grid(row=0, column=1, padx=2, pady=2)
+        first_image_for_DIC.grid(row=0, column=0, padx=2, pady=2)
         self.first_image_for_DIC_entry = ttk.Entry(DIC_solver_frame,width=6)
         self.first_image_for_DIC_entry.insert(0, 1)
-        self.first_image_for_DIC_entry.grid(row=0, column=2, padx=2, pady=2)
+        self.first_image_for_DIC_entry.grid(row=0, column=1, padx=2, pady=2)
 
         last_image_for_DIC = ttk.Label(DIC_solver_frame, text='Last stacked image:')
-        last_image_for_DIC.grid(row=0, column=3, padx=2, pady=2)
+        last_image_for_DIC.grid(row=0, column=2, padx=2, pady=2)
         self.last_image_for_DIC_entry = ttk.Entry(DIC_solver_frame,width=6)
         self.last_image_for_DIC_entry.insert(0, 4)
-        self.last_image_for_DIC_entry.grid(row=0, column=4, padx=2, pady=2)
+        self.last_image_for_DIC_entry.grid(row=0, column=3, padx=2, pady=2)
 
 
 
         FEM_generate_settings = ttk.Button(DIC_solver_frame,text = "Generate DIC settings", command = self.DIC_generate_settings)
-        FEM_generate_settings.grid(row=0, column=5, padx=2, pady=2)
+        FEM_generate_settings.grid(row=2, column=0, padx=2, pady=2)
 
 
         iteration = ttk.Label(DIC_solver_frame, text='Maximum iterations:')
@@ -730,10 +730,10 @@ class muDIC_GUI:
         self.convergence.grid(row=1, column=3, padx=2, pady=2)
 
         order_interp = ttk.Label(DIC_solver_frame, text='Interpolation order:')
-        order_interp.grid(row=1, column=2, padx=2, pady=2)
+        order_interp.grid(row=1, column=4, padx=2, pady=2)
         self.order_interp = ttk.Entry(DIC_solver_frame,width=6)
         self.order_interp.insert(0, 20)
-        self.order_interp.grid(row=1, column=3, padx=2, pady=2)
+        self.order_interp.grid(row=1, column=5, padx=2, pady=2)
 
 
         # Menu to select the type of Finite Element
@@ -741,7 +741,7 @@ class muDIC_GUI:
         store_internal_var = ttk.Label(DIC_solver_frame, text=store_internal_var,anchor='e',width=len('Store internal variables:')
                             #  , width=len(text_FEM_type)
                              )
-        store_internal_var.grid(row=1, column=4, padx=2, pady=2)
+        store_internal_var.grid(row=0, column=4, padx=2, pady=2)
        # list of the supported FEM - For the moment only Q4 are supported
         self.list_store_internal_var = ['Yes','No']
         # creation comboBox
@@ -749,7 +749,7 @@ class muDIC_GUI:
         default_store_internal_var = 0
         self.list_combo_store_internal_var.current(default_store_internal_var)
         #Position de la ComboBox
-        self.list_combo_store_internal_var.grid(row=1, column=5, padx=2, pady=2)
+        self.list_combo_store_internal_var.grid(row=0, column=5, padx=2, pady=2)
         # Attribution of default value in case the user is satisfied with the proposed one
         self.temp_store_internals = True
         self.list_combo_store_internal_var.bind("<<ComboboxSelected>>",self.select_menu_store_internal_var)
