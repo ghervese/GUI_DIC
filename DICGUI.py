@@ -159,6 +159,13 @@ class muDIC_GUI:
     def select_menu_FEM_type(self,event):
         self.FEM_type = self.list_combo_FEM_type.get()
 
+    def select_menu_store_internal_var(self,event):
+        temp_store_internal_var = self.list_combo_store_internal_var.get()
+        if temp_store_internal_var == 'Yes':
+            self.temp_store_internals = True
+        else:
+            self.temp_store_internals = False
+
     def first_image_view(self):
         """
         This method loads the first image in the selected directory with the proper prefix, numbering and format.
@@ -281,6 +288,21 @@ class muDIC_GUI:
     def FEM_mesh_prop_gen(self):
         self.mesher = dic.Mesher(deg_e=1, deg_n=1,type=self.list_FEM_type)
 
+    def DIC_generate_settings(self):
+        self.DIC_settings = dic.DICInput(self.mesh,self.image_stack)
+        self.DIC_settings.ref_update = [np.int64(self.first_image_for_DIC_entry.get())]
+        self.DIC_settings.max_nr_im = np.int64(self.first_image_for_DIC_entry.get())-np.int64(self.last_image_for_DIC_entry.get())+1
+        self.DIC_settings.maxit = np.int64(self.iteration.get())
+        self.DIC_settings.tom = np.int64(self.convergence.get())
+        self.DIC_settings.interpolation_order = np.int64(self.order_interp.get())
+        self.DIC_settings.store_internals=self.temp_store_internals
+        
+    def prepare_DIC_analysis(self):
+        self.DIC_job = dic.DICAnalysis(self.DIC_settings)
+
+    def run_DIC_analysis(self):
+        self.DIC_results = self.DIC_job.run()
+
     def create_gui(self):
         """
         Creates the GUI
@@ -377,9 +399,9 @@ class muDIC_GUI:
         self.list_combo_num_images.current(default_num_image)
         #ComboBox location
         self.list_combo_num_images.grid(row=1, column=3, padx=2, pady=2)
-        self.list_combo_num_images.bind("<<ComboboxSelected>>",self.select_menu_num_images)
         # Attribution of default value in case the user is satisfied with the proposed one
         self.num_images = self.list_num_images[default_num_image]
+        self.list_combo_num_images.bind("<<ComboboxSelected>>",self.select_menu_num_images)
 
         # Menu to select the numbering of the stack of images
         format_image = ttk.Label(preprocessing_frame, text='Type of the images:',anchor='e',width=len('Numbering format of the images'))
@@ -393,9 +415,9 @@ class muDIC_GUI:
         self.list_combo_format_image.current(default_format_image)
         #Position de la ComboBox
         self.list_combo_format_image.grid(row=2, column=3, padx=2, pady=2)
-        self.list_combo_format_image.bind("<<ComboboxSelected>>",self.select_menu_format_image)
         # Attribution of default value in case the user is satisfied with the proposed one
         self.format_image = self.list_format_image[default_format_image]
+        self.list_combo_format_image.bind("<<ComboboxSelected>>",self.select_menu_format_image)
 
         import_first_image_button = ttk.Button(preprocessing_frame,text = "View first image", command = self.first_image_view)
         import_first_image_button.grid(row=2, column=4, padx=2, pady=2)
@@ -529,9 +551,9 @@ class muDIC_GUI:
         self.FEM_list_combo_num_images.current(FEM_default_num_image)
         #ComboBox location
         self.FEM_list_combo_num_images.grid(row=1, column=3, padx=2, pady=2)
-        self.FEM_list_combo_num_images.bind("<<ComboboxSelected>>",self.FEM_select_menu_num_images)
         # Attribution of default value in case the user is satisfied with the proposed one
         self.FEM_num_images = self.FEM_list_num_images[default_num_image]
+        self.FEM_list_combo_num_images.bind("<<ComboboxSelected>>",self.FEM_select_menu_num_images)
 
         # Menu to select the numbering of the stack of images
         FEM_text_format_image = 'Type of the images:'
@@ -548,9 +570,9 @@ class muDIC_GUI:
         self.FEM_list_combo_format_image.current(default_format_image)
         #Position de la ComboBox
         self.FEM_list_combo_format_image.grid(row=2, column=3, padx=2, pady=2)
-        self.FEM_list_combo_format_image.bind("<<ComboboxSelected>>",self.FEM_select_menu_format_image)
         # Attribution of default value in case the user is satisfied with the proposed one
         self.FEM_format_image = self.FEM_list_format_image[FEM_default_format_image]
+        self.FEM_list_combo_format_image.bind("<<ComboboxSelected>>",self.FEM_select_menu_format_image)
 
         FEM_text_import_first_image_button = "View first image"
         FEM_import_first_image_button = ttk.Button(FEM_frame,text = FEM_text_import_first_image_button, command = self.FEM_first_image_view
@@ -593,9 +615,10 @@ class muDIC_GUI:
         self.list_combo_FEM_type.current(default_FEM_type)
         #Position de la ComboBox
         self.list_combo_FEM_type.grid(row=3, column=1, padx=2, pady=2)
-        self.list_combo_FEM_type.bind("<<ComboboxSelected>>",self.select_menu_FEM_type)
         # Attribution of default value in case the user is satisfied with the proposed one
         self.FEM_type = self.list_FEM_type[default_FEM_type]
+        self.list_combo_FEM_type.bind("<<ComboboxSelected>>",self.select_menu_FEM_type)
+
 
 
 
@@ -690,6 +713,68 @@ class muDIC_GUI:
 
 
 
+        FEM_generate_settings = ttk.Button(DIC_solver_frame,text = "Generate DIC settings", command = self.DIC_generate_settings)
+        FEM_generate_settings.grid(row=0, column=5, padx=2, pady=2)
+
+
+        iteration = ttk.Label(DIC_solver_frame, text='Maximum iterations:')
+        iteration.grid(row=1, column=0, padx=2, pady=2)
+        self.iteration = ttk.Entry(DIC_solver_frame,width=6)
+        self.iteration.insert(0, 20)
+        self.iteration.grid(row=1, column=1, padx=2, pady=2)
+
+        convergence = ttk.Label(DIC_solver_frame, text='Convergence tolerance:')
+        convergence.grid(row=1, column=2, padx=2, pady=2)
+        self.convergence = ttk.Entry(DIC_solver_frame,width=6)
+        self.convergence.insert(0, 1E-6)
+        self.convergence.grid(row=1, column=3, padx=2, pady=2)
+
+        order_interp = ttk.Label(DIC_solver_frame, text='Interpolation order:')
+        order_interp.grid(row=1, column=2, padx=2, pady=2)
+        self.order_interp = ttk.Entry(DIC_solver_frame,width=6)
+        self.order_interp.insert(0, 20)
+        self.order_interp.grid(row=1, column=3, padx=2, pady=2)
+
+
+        # Menu to select the type of Finite Element
+        store_internal_var = 'Store internal variables:'
+        store_internal_var = ttk.Label(DIC_solver_frame, text=store_internal_var,anchor='e',width=len('Store internal variables:')
+                            #  , width=len(text_FEM_type)
+                             )
+        store_internal_var.grid(row=1, column=4, padx=2, pady=2)
+       # list of the supported FEM - For the moment only Q4 are supported
+        self.list_store_internal_var = ['Yes','No']
+        # creation comboBox
+        self.list_combo_store_internal_var=ttk.Combobox(DIC_solver_frame, values=self.list_store_internal_var,width=5)
+        default_store_internal_var = 0
+        self.list_combo_store_internal_var.current(default_store_internal_var)
+        #Position de la ComboBox
+        self.list_combo_store_internal_var.grid(row=1, column=5, padx=2, pady=2)
+        # Attribution of default value in case the user is satisfied with the proposed one
+        self.temp_store_internals = True
+        self.list_combo_store_internal_var.bind("<<ComboboxSelected>>",self.select_menu_store_internal_var)
+
+        prepare_DIC_analysis = ttk.Button(DIC_solver_frame,text = "Prepare analysis", command = self.prepare_DIC_analysis)
+        prepare_DIC_analysis.grid(row=2, column=2, padx=2, pady=2)
+        launch_DIC_analysis = ttk.Button(DIC_solver_frame,text = "Run DIC", command = self.run_DIC_analysis)
+        launch_DIC_analysis.grid(row=2, column=3, padx=2, pady=2)
+
+
+        """
+        settings = dic.DICInput(mesh,image_stack)
+        settings.max_nr_im = nbr_images_a_traiter
+        # settings.ref_update = [5]
+        settings.maxit = 20
+        settings.tom = 1.e-6
+        settings.interpolation_order = 4
+        settings.store_internals = True
+        # This setting defines the behaviour when convergence is not obtained
+        settings.noconvergence = "ignore"
+        dic_job = dic.DICAnalysis(settings)
+        dic_results = dic_job.run()
+        """
+
+
 #####################################################################################
         ####################################################################
         # Code lines related to the third tab of the GUI / Post-processing #
@@ -713,7 +798,7 @@ class muDIC_GUI:
                 fill='both')
         text_width=np.max([len(self.text_icone+' has been developed by'),len('Guillaume Hervé-Secourgeon'),len(' based on '+u"\N{GREEK SMALL LETTER MU}"+"DIC Python Class developed by S.N. Olufsen")])
         text_credits = ttk.Label(self.about_frame, text=
-                                       self.text_icone+' has been developed by\n Guillaume Hervé-Secourgeon\n based on '+u"\N{GREEK SMALL LETTER MU}"+"DIC Python Class developed by S.N. Olufsen"
+                                       self.text_icone+' has been developed by\n Guillaume Hervé-Secourgeon\n based on '+u"\N{GREEK SMALL LETTER MU}"+"DIC Python Class developed by S.N. Olufsen \n MIT Licence \n (c) 2023 Copyright G. Hervé-Secourgeon"
                                         ,width=text_width,justify='center'
                                        )
         text_credits.pack(pady=100)
