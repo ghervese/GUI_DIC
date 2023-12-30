@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import tkinter as tk
 import tkinter.font as font
 from tkinter import ttk
@@ -44,7 +45,7 @@ class muDIC_GUI:
         self.fig_photo_first = None
         self.source_selection_path = None
         self.FEM_fig_photo_first = None
-
+        self.mudicgui_version = 'v 0.1'
     plt.rcParams['figure.figsize'] = [0.1, 0.1]
 
     def Close(self):
@@ -80,9 +81,6 @@ class muDIC_GUI:
         self.nb_files_max = len([entry for entry in os.listdir(self.source_selection_path)])
         print('nbre de fichiers',self.nb_files_max)
         self.num_first_fic = self.extract_number_fic(self.first_image_file)
-        # print(self.first_image_file)
-        # print(self.extract_number_fic(self.first_image_file))
-        # print("Numero du premier fichier:",self.num_first_fic)
 
     def first_image_view(self):
         """
@@ -90,7 +88,6 @@ class muDIC_GUI:
         It converts it into a hypermatrix with pixels in row and columns and 4 digits corresponding to the Bayer matrix value
         If the image is in true gray level, this is not a hypermatrix but a "simple" matrix with 1 digit for each pixel location.
         """
-#        self.preview = mpimg.imread(self.source_selection_path +'/' +self.prefix_entry.get() + str(self.num_images) + str(self.nb_first_image.get()) + self.format_image)
         self.preview = mpimg.imread(self.first_image_file)
         plt.clf()
         self.preview_selection = plt.figure(figsize=(15,2))
@@ -204,13 +201,6 @@ class muDIC_GUI:
         plt.show()
 
 
-
-
-
-
-
-
-
     def image_stacking(self):
 #        self.image_stack = dic.image_stack_from_folder(self.FEM_source_selection_path,file_type=self.FEM_format_image)
         self.image_stack = dic.image_stack_from_folder(self.FEM_source_selection_path,file_type=".tiff")
@@ -243,9 +233,13 @@ class muDIC_GUI:
         self.no_convergence_action =  self.list_combo_no_convergence_options.get()
 
 
+    def select_quantity_of_interest_to_plot(self,event):
+        self.quantity_of_interest =  self.fields[self.list_combo_quantity_of_interest_to_plot.get()]
 
+    def select_component_quantity_of_interest_to_plot(self,event):
+        self.component_quantity_of_interest =  self.component[self.list_combo_component_quantity_of_interest_to_plot.get()]
 
-
+ 
     def FEM_generate(self):
         image = Image.open(self.FEM_first_image_file)
         w, h = image.size
@@ -365,13 +359,7 @@ class muDIC_GUI:
         self.DIC_settings.store_internals=self.temp_store_internals
         self.DIC_settings.noconvergence = "ignore"
 
-# ########################## Param pour test
-#         self.DIC_settings.max_nr_im = 36
-#         self.DIC_settings.maxit = 20
-#         self.DIC_settings.tom = 1.e-6
-#         self.DIC_settings.interpolation_order = 4
-#         self.DIC_settings.store_internals= True
-#         self.DIC_settings.noconvergence = "ignore"
+
 
 
 
@@ -381,6 +369,72 @@ class muDIC_GUI:
     def run_DIC_analysis(self):
         self.DIC_results = self.DIC_job.run()
         print('DIC finished ! '+self.FEM_nb_stack_images.get()+' images have been processed.')
+
+    def generate_animated_gif(self,images_list: list,quantity_of_interest: str,analysis: str,output_directory: Path,duration_im: float):
+        '''
+        This method generates an animated gif to visualize the evolution of a quantity of interest along time
+        Args :  images_list: A list with the different images of processing considering a specific quantity of interest
+                quantity_of_interest: The quantity of interest figured out in the input images
+                analysis: The name of the analysis that is carried out and that will be the suffix of the ouput file name
+                output_directory: The path of the directory where the output animated .gif will be written
+                duration_im: Duration of appareance of each individual image 
+        Returns : An animated .gif
+        '''
+        # frames = []
+        # for i in image_set:
+        #     new_frame = Image.open(i)
+        #     frames.append(new_frame)
+        images_list[0].save(output_directory + analysis + quantity_of_interest + '.gif', format='GIF',
+              append_images=images_list[1:],
+              save_all=True,
+              duration=duration_im, loop=0)
+        return images_list
+
+
+    def calculate_fields(self):
+        """
+        This method calculates all the fields of quantities of interest at every instant and for every elements
+        Arg : The result of the DIC
+        Returns : An object containing the different fields that can be extracted with different methods self.DIC_results
+        """
+        self.all_fields = dic.post.viz.Fields(self.DIC_results,upscale=1)
+
+    def extract_fields(self,considered_frame):
+        """
+        This method extracts the quantity of interest and its component for every finite element at every instant
+        The coordinates in n_y direction are changed to cope with the orientation of the photoreceptor of the lense.
+        The coordinate system of a camera is a non direct coordinate system y is downward and x from the left to the right
+        Args : the object containing every fields, the considered instant
+        Returns :   3 matrices:
+                    Matrix with quantity of interest of size n_x x n_y
+                    Matrix with the coordinates along n_x
+                    Matrix with the coordinates along n_y            
+        """
+        method_for_the_selected_field = self.fields[self.list_combo_quantity_of_interest_to_plot.get()]
+        component = self.component[self.list_combo_component_quantity_of_interest_to_plot.get()]
+        quantity = self.all_fields.method_for_the_selected_field
+        if method_for_the_selected_field == 'disp()':
+            self.element_coord_in_x = quantity[0,:,:,:,considered_frame][0,0,:]
+            self.element_coord_in_y = quantity[0,:,:,:,considered_frame][0,:,0]
+            if component == 'Disp-x':
+                self.field_to_plot_any_time = quantity[0,:,:,:,considered_frame][0,:,:][0]
+            else:
+                self.field_to_plot_any_time = quantity[0,:,:,:,considered_frame][0,:,:][1]
+        else:
+            self.element_coord_in_x = quantity[0,:,:,:,:,considered_frame][0,0,0,:]
+            self.element_coord_in_y = quantity[0,:,:,:,:,considered_frame][0,0,:,0]
+            if component == 'xx':
+                self.field_to_plot_any_time = quantity[0,:,:,:,:,considered_frame][0,:,:,:][0]
+            elif component == 'yy':
+                self.field_to_plot_any_time = quantity[0,:,:,:,:,considered_frame][:,0,:,:][0]
+            else: # for the component 'xy'
+                self.field_to_plot_any_time = quantity[0,:,:,:,:,considered_frame][:,0,:,:][1]
+                # Because of Cauchy principle for isotropic medium we could have chosen also [0,:,:,:][1]
+                # as epsilon_xy = epsilon_yx 
+
+
+
+
 
     def create_gui(self):
         """
@@ -392,34 +446,221 @@ class muDIC_GUI:
         # Pre-processing of images
         tab_control = ttk.Notebook(self.root)
 
+        self.text_icone = u"\N{GREEK SMALL LETTER MU}"+'DIC'+u"\u1D33"+u"\u1D41"+u"\u1D35"
+        self.text_muDIC = u"\N{GREEK SMALL LETTER MU}"+'DIC'
+
+        tab_info = ttk.Frame(tab_control)
+        tab_control.add(tab_info, text='How to use '+self.text_icone+' / Quit the application')
+        tab_control.pack(expand=1
+                         , fill='both'
+                         )
+
+
+
+
+
         tab0 = ttk.Frame(tab_control)
         tab_control.add(tab0, text='Test campaign preparation')
-        tab_control.pack(expand=1, fill='both')
+        tab_control.pack(expand=1
+                         , fill='both'
+                         )
+        tab0.grid_columnconfigure(0, weight=1)
+        tab0.grid_rowconfigure(0,weight=1)
 
         tab1 = ttk.Frame(tab_control)
         tab_control.add(tab1, text='Pre-processing')
-        tab_control.pack(expand=1, fill='both')
+        tab_control.pack(expand=1
+                         , fill='both'
+                         )
+        tab1.grid_columnconfigure(0, weight=1)
+        tab1.grid_rowconfigure(0,weight=1)
 
         # Definition of the ROI, creation of the mesh and calculation
         tab2 = ttk.Frame(tab_control)
         tab_control.add(tab2, text='Digital Image Correlation')
-        tab_control.pack(expand=1, fill='both')
+        tab_control.pack(expand=1
+                         , fill='both'
+                         )
+        tab2.grid_columnconfigure(0, weight=1)
+        tab2.grid_rowconfigure(0,weight=1)
 
         # Post-processing of the different quantities of interest
         tab3 = ttk.Frame(tab_control)
         tab_control.add(tab3, text='Post-processing')
-        tab_control.pack(expand=1, fill='both')
-
-        tab5 = ttk.Frame(tab_control)
-        tab_control.add(tab5, text='DIC - Code_Aster dialogue')
-        tab_control.pack(expand=1, fill='both')
-
+        tab_control.pack(expand=1
+                         , fill='both'
+                         )
+        tab3.grid_columnconfigure(0, weight=1)
+        tab3.grid_rowconfigure(0,weight=1)
 
         tab4 = ttk.Frame(tab_control)
-        tab_control.add(tab4, text='About')
-        tab_control.pack(expand=1, fill='both')
+        tab_control.add(tab4, text='DIC - Code_Aster dialogue')
+        tab_control.pack(expand=1
+                         , fill='both'
+                         )
+        tab4.grid_columnconfigure(0, weight=1)
+        tab4.grid_rowconfigure(0,weight=1)
+
+        tab5 = ttk.Frame(tab_control)
+        tab_control.add(tab5, text='About')
+        tab_control.pack(expand=1
+                         , fill='both'
+                         )
+        tab5.grid_columnconfigure(0, weight=1)
+        tab5.grid_rowconfigure(0,weight=1)
 
 
+#####################################################################################
+        ############################################################################
+        # Code lines related to presentation of muDIC-GUI and Quit the application #
+        ############################################################################
+#####################################################################################
+
+        font_size_text_description = 9
+        frame_width_description = 200
+        style_font_description = ('Arial', font_size_text_description)
+
+#########################################################################################
+        # Description of the different tabs of the application
+        ##########################################################
+        frame_description_test_prep = ttk.LabelFrame(tab_info,text='Test campaign preparation')
+        frame_description_test_prep.pack(
+             expand=1,
+              fill='both',
+             # side='left',
+            #   padx=2, pady=2
+              )
+
+
+
+        description_test_prep = 'The purpose of this tab is to set up the best achievable parameters in order to capture digital images on a test sample. The user will need to know \n   (1)The characteristics of the camera (sensor size, pixel size per unit length, lens, aperture. \n   (2)the largest size of the sample that will be observed, the magnitude of the quantities of interest that are expected to get. \nThis part will provide the size of the particles of the speckle to reach the expected magnitude of the quantities of interest.'
+
+        T1 = tk.Label(frame_description_test_prep
+                      ,text=description_test_prep
+                      ,justify='left'
+                      ,width=frame_width_description
+                      ,font=style_font_description
+                      )
+        T1.pack(expand=1,anchor='nw')
+
+
+        frame_description_preproc = ttk.LabelFrame(tab_info,text='Pre-processing')
+        frame_description_preproc.pack(
+             expand=1,
+              fill='both',
+             # side='left',
+            #   padx=2, pady=2
+              )
+
+        description_preproc = 'The purpose of this tab is to prepare the images that have been captured during the test campaign. \nThe user shall have prepared the data so that they are as follows:\n   (1) Raw images - This means that they shall not have been compressed. TIF, TIFF, PNG, etc .. will be prefered. \n   (2) The image files shall terminate by their numbering: for example a set of name_of_the_file00xxx.tif. Where xxx can start at any value. The amount of 0 before the number can vary. \n   (3)The files shall be in the same directory. \n The user can resize the images in order to get rid of elements in the field of view that are not useful in the analysis. \n The user will specify different options to store the cropped images as: \n   (1)The prefix of the output images. \n   (2)The target directory where they will be stored. \n   (3)The format of the numbering of the images. \n   (4)The extension of the files: .tiff, .png, etc ...'
+
+        T1 = tk.Label(frame_description_preproc
+                      ,text=description_preproc
+                      ,justify='left'
+                      ,width=frame_width_description
+                      ,font=style_font_description
+                      )
+        T1.pack(expand=1,anchor='nw')
+
+
+
+
+
+        frame_DIC = ttk.LabelFrame(tab_info,text='Digital Image Correlation')
+        frame_DIC.pack(
+             expand=1,
+              fill='both',
+             # side='left',
+            #   padx=2, pady=2
+              )
+
+
+        description_DIC = 'The purpose of this tab is to prepare and run the DIC analysis. \nFirst the user will identify the ROI on the image by selecting it on the preview of the first image of the set of captured data. \nThen it possible to chose the properties of the mesh that is generated: \n   (1) The type of element: Q4 or T3 (not supported for the moment) \n   (2) The amount of pixels per element side. The element are built as square as possible considering the size of the ROI and the density of pixels per element. \nWhen the ROI is meshed, it is possible to run the muDIC solver, by selecting it different settings as:\n   (1)The reference image \n   (2)The last image that is analyzed\n   (3)The max. number of iterations of each convergence step\n   (4)The tolerance for each convergence step\n   (5)...'
+
+        T1 = tk.Label(frame_DIC,
+                      text=description_DIC,
+                      justify='left',
+                      width=frame_width_description,
+                      font=style_font_description
+                      )
+        T1.pack(expand=1,anchor='nw')
+
+
+
+        frame_description_postproc = ttk.LabelFrame(tab_info,text='Post-processing')
+        frame_description_postproc.pack(
+             expand=1,
+              fill='both',
+             # side='left',
+            #   padx=2, pady=2
+              )
+
+
+        description_postproc = 'The purpose of this tab is to post-process the result of the DIC solver.\nFor this purpose, the user will have the choice to keep the pixels as unit or to define with a GUI on clicking on a reference on screen whose actual length is well known.\nThe scale parameter between pixels and actual unit that have been selected by the user (mm,cm,m)\nIt is possible to select amoung the different quantities of interest produced by the solver and that the user can scroll.\nIt is also possible to pick a specific point and plot its evolution (displacement, velocity, acceleration) along time.\nThen it is possible to calculate SDOF-Response spectrum or to carry out Cauchy Continuous Wavelet Transform analysis.'
+
+        T1 = tk.Label(frame_description_postproc,
+                      text=description_postproc,
+                      justify='left',
+                      width=frame_width_description,
+                      font=style_font_description
+                      )
+        T1.pack(expand=1,anchor='nw')
+
+
+
+
+
+
+        frame_description_code_aster_dialogue = ttk.LabelFrame(tab_info,text='DIC-Code_Aster dialogue')
+        frame_description_code_aster_dialogue.pack(
+             expand=1,
+              fill='both',
+             # side='left',
+            #   padx=2, pady=2
+              )
+
+        description_DIC_Code_Aster = 'This last tab provides the possibility to prepare a Code_Aster computation based on the meshed ROI and its boundary conditions in displacement along time.\nA Code_Aster command file is generated. It accounts for:\n   (1)A condensation of the displacement on a polynomial basis, along time and along the segment of the sample that are selected on screen by the user.\n   (2)A set of material properties among those that are proposed in Code_Aster (focusing on elastic, viscoplastic or damage constitutive equations.'
+        T1 = tk.Label(frame_description_code_aster_dialogue,
+                      text=description_DIC_Code_Aster,
+                      justify='left',
+                      width=frame_width_description,
+                      font=style_font_description
+                      )
+        T1.pack(expand=1,anchor='nw')
+
+
+        frame_for_button_and_icone = ttk.LabelFrame(tab_info,text='Quit the application')
+        frame_for_button_and_icone.pack(
+             expand=1,
+              fill='y',
+             # side='left',
+            #   padx=2, pady=2
+              )
+
+
+
+
+
+        FRAME_for_quit=tk.Frame(frame_for_button_and_icone,
+                                # width=10,
+                                # height =10
+                                )
+        FRAME_for_quit.pack()
+
+        # FRAME_for_quit.place(in_=frame_for_button_and_icone, relx=1.0, x=-250)
+
+        myFont_quit = font.Font(weight="normal")
+        quit_button = tk.Button(FRAME_for_quit,text = "Quit", fg='Red', command = self.Close
+                                # ,width=5
+                                )
+        # "Run "+u"\N{GREEK SMALL LETTER MU}"+"DIC"
+        # Define font
+        quit_button['font'] = myFont_quit
+        quit_button.grid(row=1, column=5,
+                        #  padx=2,
+                        #  pady=2
+                         )
+        #quit_button.place(in_=preprocessing_frame,relx=1.0, x=-130, rely=0, y=50)
 
 
 #####################################################################################
@@ -427,8 +668,14 @@ class muDIC_GUI:
         # Code lines related to the experimental preparation / speckle choice #
         #######################################################################
 #####################################################################################
+        test_prep_frame = ttk.LabelFrame(tab0, text='Test campaign preparation')
+        test_prep_frame.pack(expand=1, fill='both', padx=2, pady=2)
 
 
+        self.FRAME_for_icone=ttk.Frame(test_prep_frame, width=10, height =10)
+        self.FRAME_for_icone.place(in_=test_prep_frame, relx=1.0, x=-150, rely=0, y=5)
+
+        LABEL=ttk.Label(self.FRAME_for_icone, text=self.text_icone,font=('Helvetica', 18,'bold','italic'),foreground='blue').pack()
 
 
 
@@ -448,48 +695,12 @@ class muDIC_GUI:
 #####################################################################################
 
         # Frame pour user data
-        preprocessing_frame = ttk.LabelFrame(tab1, text='Selection of the experimental raw images')
+        preprocessing_frame = tk.LabelFrame(tab1, text='Selection of the experimental raw images')
         preprocessing_frame.pack(
-             # expand=1,
-                fill='both',
+             expand=1,
+              fill='both',
              # side='left',
               padx=2, pady=2)
-
-        chose_path_button = ttk.Button(preprocessing_frame, text="1-Select the folder location of the images", command=self.select_images_folder)
-        chose_path_button.grid(row=0, column=0, padx=2, pady=2)
-
-        chose_first_raw_file_button = ttk.Button(preprocessing_frame, text="2-Select the first image", command=self.select_first_image)
-        chose_first_raw_file_button.grid(row=0, column=1, padx=2, pady=2)
-
-        import_first_image_button = ttk.Button(preprocessing_frame,text = "3-View first image", command = self.first_image_view)
-        import_first_image_button.grid(row=0, column=2, padx=2, pady=2)
-
-        self.text_icone = u"\N{GREEK SMALL LETTER MU}"+'DIC'+u"\u1D33"+u"\u1D41"+u"\u1D35"
-        self.text_muDIC = u"\N{GREEK SMALL LETTER MU}"+'DIC'
-        # icone_frame = ttk.Frame(tab1)
-        # icone_frame.place(in_=tab1, relx=1,rely=0,x=-100,y=-50)
-        # icone = ttk.Label(icone_frame, text=self.text_icone,font=('Helvetica', 18,'bold','italic'),foreground='blue')
-        # icone.pack()
-
-
-
-#         quit_button = ttk.Button(preprocessing_frame,text = "Quit",command = self.Close,width=5)
-# #        quit_button.place(in_=preprocessing_frame, relx=1.0, x=-130, rely=0, y=50)
-#         quit_button.grid(row=1, column=5, padx=2, pady=2)
-
-
-        myFont_quit = font.Font(weight="normal")
-        quit_button = tk.Button(preprocessing_frame,text = "Quit", fg='Red', command = self.Close,width=5)
-        # "Run "+u"\N{GREEK SMALL LETTER MU}"+"DIC"
-        # Define font
-        quit_button['font'] = myFont_quit
-        quit_button.grid(row=1, column=5, padx=2, pady=2)
-        quit_button.place(in_=preprocessing_frame,relx=1.0, x=-250, rely=0, y=-2)
-
-        # self.FRAME_for_icone=ttk.Frame(preprocessing_frame, width=10, height =10)
-        # self.FRAME_for_icone.place(in_=preprocessing_frame, relx=1.0, x=-150, rely=0, y=5)
-
-
 
 
         self.FRAME_for_icone=ttk.Frame(preprocessing_frame, width=10, height =10)
@@ -498,63 +709,31 @@ class muDIC_GUI:
         LABEL=ttk.Label(self.FRAME_for_icone, text=self.text_icone,font=('Helvetica', 18,'bold','italic'),foreground='blue').pack()
 
 
+        #preprocessing_frame.grid_columnconfigure(0, weight=1)
+        #preprocessing_frame.grid_rowconfigure(0,weight=1)
+
+
+        chose_path_button = tk.Button(preprocessing_frame, text="1-Select the folder location of the images", command=self.select_images_folder)
+        chose_path_button.grid(row=0, column=0, padx=2, pady=2)
+
+        chose_first_raw_file_button = tk.Button(preprocessing_frame, text="2-Select the first image", command=self.select_first_image)
+        chose_first_raw_file_button.grid(row=0, column=1, padx=2, pady=2)
+
+        import_first_image_button = tk.Button(preprocessing_frame,text = "3-View first image", command = self.first_image_view)
+        import_first_image_button.grid(row=0, column=2, padx=2, pady=2)
+
+
+        # self.FRAME_for_icone=tk.Frame(frame_for_button_and_icone, width=10, height =10)
+        # # self.FRAME_for_icone.place(in_=frame_for_button_and_icone, relx=1.0, x=-150)
+        # self.FRAME_for_icone.pack(anchor='e',padx=80)
+
+        # LABEL=tk.Label(self.FRAME_for_icone, text=self.text_icone,font=('Helvetica', 18,'bold','italic'),foreground='blue').pack()
 
 
 
 
-        # self.FRAME_for_icone=ttk.Frame(FEM_frame, width=10, height =10)
-        # self.FRAME_for_icone.place(in_=FEM_frame, relx=1.0, x=-100, rely=0, y=-10)
-
-        # LABEL=ttk.Label(self.FRAME_for_icone, text=self.text_icone).pack()
-        '''
-        # Text area to define the prefix of the images
-        object_label = ttk.Label(preprocessing_frame, text='Prefix of the images (replace the example):')
-        object_label.grid(row=1, column=0, padx=2, pady=2)
-        self.prefix_entry = ttk.Entry(preprocessing_frame)
-        self.prefix_entry.insert(0, 'Gauche_Droite-')
-        self.prefix_entry.grid(row=1, column=1, padx=2, pady=2)
-
-        # Text area to define the prefix of the images
-        object_label = ttk.Label(preprocessing_frame, text='Suffix of the images (replace the example):')
-        object_label.grid(row=2, column=0, padx=2, pady=2)
-        self.suffix_entry = ttk.Entry(preprocessing_frame)
-        self.suffix_entry.insert(0, '_gauche')
-        self.suffix_entry.grid(row=2, column=1, padx=2, pady=2)
-
-        text_num_images = 'Numbering format of the images \n (ex: if 00 selected then 00u, 0du ...):'
-        # Menu to select the numbering of the stack of images
-        num_images = ttk.Label(preprocessing_frame, text=text_num_images,anchor='e',justify='right',width=len('Numbering format of the images'))
-        num_images.grid(row=1, column=2, padx=2, pady=2)
-
-        # list of the supported numbering types
-        self.list_num_images = ['0','00','000','0000','00000','000000']
-        # creation comboBox
-        self.list_combo_num_images=ttk.Combobox(preprocessing_frame, values=self.list_num_images,width=6)
-        default_num_image = 3
-        self.list_combo_num_images.current(default_num_image)
-        #ComboBox location
-        self.list_combo_num_images.grid(row=1, column=3, padx=2, pady=2)
-        # Attribution of default value in case the user is satisfied with the proposed one
-        self.num_images = self.list_num_images[default_num_image]
-        self.list_combo_num_images.bind("<<ComboboxSelected>>",self.select_menu_num_images)
-
-        # Menu to select the numbering of the stack of images
-        format_image = ttk.Label(preprocessing_frame, text='Type of the images:',anchor='e',width=len('Numbering format of the images'))
-        format_image.grid(row=2, column=2, padx=2, pady=2)
-
-        # Text area to define the prefix of the images
-        nb_first_image = 'Index of the first image:'
-        nb_first_image = ttk.Label(preprocessing_frame, text=nb_first_image,anchor='e',width=len('Numbering format of the images'))
-        nb_first_image.grid(row=3, column=0, padx=2, pady=2)
-        self.nb_first_image = ttk.Entry(preprocessing_frame,width=5)
-        self.nb_first_image.insert(0, 709)
-        self.nb_first_image.grid(row=3, column=1, padx=2, pady=2)
 
 
-
-
-        
-        '''
 
 ######################################################################################################
         # Frame showing the first images of the stack
@@ -574,12 +753,12 @@ class muDIC_GUI:
         
 
         ROI_frame = tk.LabelFrame(tab1, text='Resizing the experimental images',height=100)
-        ROI_frame.pack(expand=1, fill='both', padx=2, pady=2)
+        ROI_frame.pack(expand=1, fill='x', padx=2, pady=2)
 
-        select_ROI_button = ttk.Button(ROI_frame,text = "Resizing the image on screen", command = self.select_ROI_rectangle)
+        select_ROI_button = tk.Button(ROI_frame,text = "Resizing the image on screen", command = self.select_ROI_rectangle)
         select_ROI_button.grid(row=0, column=4, padx=2, pady=2)
 
-        # show_ROI_button = ttk.Button(ROI_frame,text = "Apply ROI selection", command = self.plot_ROI_on_fig)
+        # show_ROI_button = tk.Button(ROI_frame,text = "Apply ROI selection", command = self.plot_ROI_on_fig)
         # show_ROI_button.grid(row=0, column=1,columnspan=2, padx=2, pady=2)
 
         label_coord_corner1 = ttk.Label(ROI_frame, text='Coordinates in pixels of corner 1:')
@@ -609,7 +788,7 @@ class muDIC_GUI:
         self.output_ROI_dir_entry.grid(row=1, column=1, padx=2, pady=2)
 
 
-        # prepare_resize_ROI_button2 = ttk.Button(ROI_frame,text = "Number of files to be cropped", command=get_number_of_files())
+        # prepare_resize_ROI_button2 = tk.Button(ROI_frame,text = "Number of files to be cropped", command=get_number_of_files())
         # prepare_resize_ROI_button2.grid(row=2, column=3,columnspan=2, padx=2, pady=2)
 
         # Text area to define the prefix of the images
@@ -664,11 +843,11 @@ class muDIC_GUI:
 
 
         #prepare_resize_ROI_button = tk.Button(ROI_frame,text = "Generate default output directory", command=lambda:[self.create_output_folder, get_number_of_files()])
-        prepare_resize_ROI_button1 = ttk.Button(ROI_frame,text = "Generate default output directory", command=self.create_output_folder)
+        prepare_resize_ROI_button1 = tk.Button(ROI_frame,text = "Generate default output directory", command=self.create_output_folder)
         prepare_resize_ROI_button1.grid(row=1, column=4, padx=2, pady=2)
 
 
-        resize_ROI_button = ttk.Button(ROI_frame,text = "Export cropped images", command=self.crop_images_to_ROI)
+        resize_ROI_button = tk.Button(ROI_frame,text = "Export cropped images", command=self.crop_images_to_ROI)
         resize_ROI_button.grid(row=2, column=4, padx=2, pady=2)
 
 ##################################################################################################
@@ -690,97 +869,16 @@ class muDIC_GUI:
 
 
 
-        FEM_chose_path_button = ttk.Button(FEM_frame, text="1-Select the folder location of the images", command=self.FEM_select_images_folder)
+        FEM_chose_path_button = tk.Button(FEM_frame, text="1-Select the folder location of the images", command=self.FEM_select_images_folder)
         FEM_chose_path_button.grid(row=0, column=0, padx=2, pady=2)
 
-        FEM_chose_first_raw_file_button = ttk.Button(FEM_frame, text="2-Select the first image", command=self.FEM_select_first_image)
+        FEM_chose_first_raw_file_button = tk.Button(FEM_frame, text="2-Select the first image", command=self.FEM_select_first_image)
         FEM_chose_first_raw_file_button.grid(row=0, column=1, padx=2, pady=2)
 
-        FEM_import_first_image_button = ttk.Button(FEM_frame,text = "3-View first image", command = self.FEM_first_image_view)
+        FEM_import_first_image_button = tk.Button(FEM_frame,text = "3-View first image", command = self.FEM_first_image_view)
         FEM_import_first_image_button.grid(row=0, column=2, padx=2, pady=2)
 
 
-
-
-
-        # FEM_text_chose_path_button = "Select the folder location of the images"
-        # FEM_chose_path_button = ttk.Button(FEM_frame, text=FEM_text_chose_path_button, command=self.FEM_select_images_folder
-        #                             #    ,width=len(text_chose_path_button)
-        #                                )
-        # FEM_chose_path_button.grid(row=0, column=0, padx=2, pady=2)
-
-        # FEM_text_object_label = 'Prefix of the images (replace the example):'
-        # # Text area to define the prefix of the images
-        # FEM_object_label = ttk.Label(FEM_frame, text=FEM_text_object_label,width=len('Prefix of the images (replace the example):'),anchor='e'
-        #                         #  width=len(text_object_label)
-        #                          )
-        # FEM_object_label.grid(row=1, column=0, padx=2, pady=2)
-        # self.FEM_prefix_entry = ttk.Entry(FEM_frame)
-        # self.FEM_prefix_entry.insert(0, 'ROI_dynamic_beam_test_')
-        # self.FEM_prefix_entry.grid(row=1, column=1, padx=2, pady=2)
-
-        # # Text area to define the prefix of the images
-        # FEM_text_object_label2 = 'Suffix of the images (replace the example):'
-        # FEM_object_label2 = ttk.Label(FEM_frame, text=FEM_text_object_label2,width=len('Suffix of the images (replace the example):'),anchor='e'
-        #                         #   width=len(text_object_label2)
-        #                           )
-        # FEM_object_label2.grid(row=2, column=0, padx=2, pady=2)
-        # self.FEM_suffix_entry = ttk.Entry(FEM_frame)
-        # self.FEM_suffix_entry.insert(0, '')
-        # self.FEM_suffix_entry.grid(row=2, column=1, padx=2, pady=2)
-
-
-        # # Menu to select the numbering of the stack of images
-        # FEM_text_num_images = 'Numbering format of the images \n (ex: if 00 selected then 00u, 0du ...):'
-        # FEM_num_images = ttk.Label(FEM_frame, text=FEM_text_num_images,anchor='e',justify='right',width=len('per Finite Element side:')
-        #                     #    width = len(text_num_images)
-        #                        )
-        # FEM_num_images.grid(row=1, column=2, padx=2, pady=2)
-
-        # # list of the supported numbering types
-        # self.FEM_list_num_images = ['0','00','000','0000','00000','000000']
-        # # creation comboBox
-        # self.FEM_list_combo_num_images=ttk.Combobox(FEM_frame, values=self.FEM_list_num_images,width=6)
-        # FEM_default_num_image = 3
-        # self.FEM_list_combo_num_images.current(FEM_default_num_image)
-        # #ComboBox location
-        # self.FEM_list_combo_num_images.grid(row=1, column=3, padx=2, pady=2)
-        # # Attribution of default value in case the user is satisfied with the proposed one
-        # self.FEM_num_images = self.FEM_list_num_images[FEM_default_num_image]
-        # self.FEM_list_combo_num_images.bind("<<ComboboxSelected>>",self.FEM_select_menu_num_images)
-
-        # # Menu to select the numbering of the stack of images
-        # FEM_text_format_image = 'Type of the images:'
-        # FEM_format_image = ttk.Label(FEM_frame, text=FEM_text_format_image,anchor='e',width=len('per Finite Element side:')
-        #                         #  ,width=len(text_format_image)
-        #                          )
-        # FEM_format_image.grid(row=2, column=2, padx=2, pady=2)
-
-        # # list of the supported numbering types
-        # self.FEM_list_format_image = ['.tif','.tiff','.png']
-        # # creation comboBox
-        # self.FEM_list_combo_format_image=ttk.Combobox(FEM_frame, values=self.FEM_list_format_image,width=5)
-        # FEM_default_format_image = 1
-        # self.FEM_list_combo_format_image.current(FEM_default_format_image)
-        # #Position de la ComboBox
-        # self.FEM_list_combo_format_image.grid(row=2, column=3, padx=2, pady=2)
-        # # Attribution of default value in case the user is satisfied with the proposed one
-        # self.FEM_format_image = self.FEM_list_format_image[FEM_default_format_image]
-        # self.FEM_list_combo_format_image.bind("<<ComboboxSelected>>",self.FEM_select_menu_format_image)
-
-        # FEM_text_import_first_image_button = "View first image"
-        # FEM_import_first_image_button = ttk.Button(FEM_frame,text = FEM_text_import_first_image_button, command = self.FEM_first_image_view
-        #                                     #    , width=len(text_import_first_image_button)
-        #                                        )
-        # FEM_import_first_image_button.grid(row=1, column=5, padx=2, pady=2)
-
-        # # Text area to define the prefix of the images
-        # FEM_nb_first_image = 'Index of the first image:'
-        # FEM_nb_first_image = ttk.Label(FEM_frame, text=FEM_nb_first_image,anchor='e',width=len('per Finite Element side:'))
-        # FEM_nb_first_image.grid(row=3, column=0, padx=2, pady=2)
-        # self.FEM_nb_first_image = ttk.Entry(FEM_frame,width=5)
-        # self.FEM_nb_first_image.insert(0, 709)
-        # self.FEM_nb_first_image.grid(row=3, column=1, padx=2, pady=2)
 
         
         # Text area to define the prefix of the images
@@ -795,12 +893,12 @@ class muDIC_GUI:
         self.FEM_nb_stack_images.grid(row=1, column=1, padx=2, pady=2)
 
         FEM_text_chose_path_button = "4-Images stacking"
-        FEM_chose_path_button = ttk.Button(FEM_frame, text=FEM_text_chose_path_button, command=self.image_stacking
+        FEM_chose_path_button = tk.Button(FEM_frame, text=FEM_text_chose_path_button, command=self.image_stacking
                                     #    , width=len(text_chose_path_button)
                                        )
         FEM_chose_path_button.grid(row=1, column=2, padx=2, pady=2)
         
-        FEM_select_ROI_button = ttk.Button(FEM_frame,text = "5-Define rectangular ROI on screen", command = self.FEM_select_ROI_rectangle)
+        FEM_select_ROI_button = tk.Button(FEM_frame,text = "5-Define rectangular ROI on screen", command = self.FEM_select_ROI_rectangle)
         FEM_select_ROI_button.grid(row=1, column=3, padx=2, pady=2)
 
 
@@ -825,14 +923,14 @@ class muDIC_GUI:
         self.FEM_canvas_FOV_ROI.pack()
 
 #############################################################################################
-    # Frame for ROI construction and mesher generation
+    # Frame for ROI construction and mesh generation
 ##############################################################################################
 
         FEM_ROI_frame = ttk.LabelFrame(tab2, text='Definition of the ROI')
         FEM_ROI_frame.pack(expand=1, fill='both', padx=2, pady=2)
 
 
-        # show_ROI_button = ttk.Button(ROI_frame,text = "Apply ROI selection", command = self.plot_ROI_on_fig)
+        # show_ROI_button = tk.Button(ROI_frame,text = "Apply ROI selection", command = self.plot_ROI_on_fig)
         # show_ROI_button.grid(row=0, column=1,columnspan=2, padx=2, pady=2)
 
         FEM_label_coord_corner1 = ttk.Label(FEM_ROI_frame, text='Coordinates in pixels of corner 1:')
@@ -888,12 +986,12 @@ class muDIC_GUI:
 
 
         FEM_text_mesh_prop_button = "Generate FEM mesh properties"
-        FEM_mesh_prop_button = ttk.Button(FEM_ROI_frame, text=FEM_text_mesh_prop_button, command=self.FEM_mesh_prop_gen
+        FEM_mesh_prop_button = tk.Button(FEM_ROI_frame, text=FEM_text_mesh_prop_button, command=self.FEM_mesh_prop_gen
                                     #    , width=len(text_chose_path_button)
                                        )
         FEM_mesh_prop_button.grid(row=0, column=4,  padx=2, pady=2)
 
-        FEM_generate_button = ttk.Button(FEM_ROI_frame,text = "Create mesh", command = self.FEM_generate)
+        FEM_generate_button = tk.Button(FEM_ROI_frame,text = "Create mesh", command = self.FEM_generate)
         FEM_generate_button.grid(row=1, column=4, padx=2, pady=2)
 
 
@@ -916,7 +1014,7 @@ class muDIC_GUI:
 
 
 
-        FEM_generate_settings = ttk.Button(DIC_solver_frame,text = "Generate DIC settings", command = self.DIC_generate_settings)
+        FEM_generate_settings = tk.Button(DIC_solver_frame,text = "Generate DIC settings", command = self.DIC_generate_settings)
         FEM_generate_settings.grid(row=0, column=6, padx=2, pady=2)
 
 
@@ -957,7 +1055,7 @@ class muDIC_GUI:
         self.temp_store_internals = True
         self.list_combo_store_internal_var.bind("<<ComboboxSelected>>",self.select_menu_store_internal_var)
 
-        prepare_DIC_analysis = ttk.Button(DIC_solver_frame,text = "Prepare analysis", command = self.prepare_DIC_analysis)
+        prepare_DIC_analysis = tk.Button(DIC_solver_frame,text = "Prepare analysis", command = self.prepare_DIC_analysis)
         prepare_DIC_analysis.grid(row=1, column=6, padx=2, pady=2)
 
 
@@ -989,25 +1087,6 @@ class muDIC_GUI:
         self.list_combo_no_convergence_options.bind("<<ComboboxSelected>>",self.select_menu_no_convergence_options)
 
 
-
-
-
-
-        """
-        settings = dic.DICInput(mesh,image_stack)
-        settings.max_nr_im = nbr_images_a_traiter
-        # settings.ref_update = [5]
-        settings.maxit = 20
-        settings.tom = 1.e-6
-        settings.interpolation_order = 4
-        settings.store_internals = True
-        # This setting defines the behaviour when convergence is not obtained
-        settings.noconvergence = "ignore"
-        dic_job = dic.DICAnalysis(settings)
-        dic_results = dic_job.run()
-        """
-
-
 #####################################################################################
         ####################################################################
         # Code lines related to the third tab of the GUI / Post-processing #
@@ -1015,9 +1094,81 @@ class muDIC_GUI:
 #####################################################################################
 
 
+        field_frame = ttk.LabelFrame(tab3, text='Field of quantities of interest')
+        field_frame.pack(expand=1, fill='both', padx=2, pady=2)
+
+        self.FRAME_for_icone=ttk.Frame(field_frame, width=10, height =10)
+        self.FRAME_for_icone.place(in_=field_frame, relx=1.0, x=-150, rely=0, y=5)
+
+        LABEL=ttk.Label(self.FRAME_for_icone, text=self.text_icone,font=('Helvetica', 18,'bold','italic'),foreground='blue').pack()
 
 
 
+        local_measurement_frame = ttk.LabelFrame(tab3, text='Local measurements')
+        local_measurement_frame.pack(expand=1, fill='both', padx=2, pady=2)
+
+        self.FRAME_for_icone=ttk.Frame(local_measurement_frame, width=10, height =10)
+        self.FRAME_for_icone.place(in_=local_measurement_frame, relx=1.0, x=-150, rely=0, y=5)
+
+        # Creating a dict with the correspondance between the keywords of the fields that 
+        # are implemented in terms immediatly meanful for the user
+
+        self.fields = {}
+        self.fields['True strain']='true_strain()'
+        self.fields['Deformation gradient']='F()'
+        self.fields['Engineering strain']='eng_strain()'
+        self.fields['Displacement']='disp()'
+        self.fields['Coordinates']='coords()'
+        self.fields['Green strain']='green_strain()'
+        
+        text_quantity_of_interest_to_plot = 'Quantity of interest:'
+        quantity_of_interest_to_plot = ttk.Label(field_frame, text=text_quantity_of_interest_to_plot,anchor='e',width=len(text_quantity_of_interest_to_plot)
+                             )
+        quantity_of_interest_to_plot.grid(row=0, column=0, padx=2, pady=2)
+       # list of the supported FEM - For the moment only Q4 are supported
+        #self.list_quantity_of_interest_to_plot = ['True strain','Deformation gradient','Engineering strain','Displacement','Coordinates','Green strain']
+        self.list_quantity_of_interest_to_plot = list(self.fields.keys())
+        # creation comboBox
+        self.list_combo_quantity_of_interest_to_plot=ttk.Combobox(field_frame, values=self.list_quantity_of_interest_to_plot,width=len('Deformation gradient'))
+        default_quantity_of_interest_to_plot = 3
+        self.list_combo_quantity_of_interest_to_plot.current(default_quantity_of_interest_to_plot)
+        #Position de la ComboBox
+        self.list_combo_quantity_of_interest_to_plot.grid(row=0, column=1, padx=2, pady=2)
+        # Attribution of default value in case the user is satisfied with the proposed one
+        self.list_combo_quantity_of_interest_to_plot.bind("<<ComboboxSelected>>",self.select_quantity_of_interest_to_plot)
+
+        self.component = {}
+        self.component['Disp-x']=(0,0)
+        self.component['Disp-y']=(1,0)
+        self.component['xx']=(0,0)
+        self.component['xy']=(0,1)
+        self.component['yy']=(1,1)
+       
+        text_component_quantity_of_interest_to_plot = 'Component to plot:'
+        component_quantity_of_interest_to_plot = ttk.Label(field_frame, text=text_component_quantity_of_interest_to_plot,anchor='e',width=len(text_component_quantity_of_interest_to_plot)
+                             )
+        component_quantity_of_interest_to_plot.grid(row=0, column=2, padx=2, pady=2)
+       # list of the supported FEM - For the moment only Q4 are supported
+        self.list_component_quantity_of_interest_to_plot = list(self.component.keys())
+        #['Disp-x','Disp-y','xx','xy','yy']
+        # creation comboBox
+        self.list_combo_component_quantity_of_interest_to_plot=ttk.Combobox(field_frame, values=self.list_component_quantity_of_interest_to_plot,width=len('Disp-x'))
+        default_component_quantity_of_interest_to_plot = 0
+        self.list_combo_component_quantity_of_interest_to_plot.current(default_component_quantity_of_interest_to_plot)
+        #Position de la ComboBox
+        self.list_combo_component_quantity_of_interest_to_plot.grid(row=0, column=3, padx=2, pady=2)
+        # Attribution of default value in case the user is satisfied with the proposed one
+        self.list_combo_component_quantity_of_interest_to_plot.bind("<<ComboboxSelected>>",self.select_component_quantity_of_interest_to_plot)
+
+        """
+        Ajouter un bouton pour lancer l'extraction des quantités d'intérêt globale
+        Ajouter un sélecteur pour choisir si on veut extraire pour tous les instants ou pour un seul instant
+        Ajouter un bouton pour calculer les quantités d'intérêt choisies
+        Ajouter un bouton pour lancer la visualisation avec les options ci-dessous
+        Pour la visualisation sur tous les instants choisir dynamic range ou max amplitude ou bien user scale
+        Mettre dans ce cas une cellule pour choisir l'instant
+        Mettre un bouton pour chosir si on veut superposer l'image de départ avec les champs calculés par DIC
+        """
 #####################################################################################
         #######################################################################
         # Code lines related to DIC - Code_Aster dialogue                     #
@@ -1025,6 +1176,13 @@ class muDIC_GUI:
 #####################################################################################
 
 
+        code_aster_frame = ttk.LabelFrame(tab4, text='Preparation of Code_Aster test simulation')
+        code_aster_frame.pack(expand=1, fill='both', padx=2, pady=2)
+
+        self.FRAME_for_icone=ttk.Frame(code_aster_frame, width=10, height =10)
+        self.FRAME_for_icone.place(in_=code_aster_frame, relx=1.0, x=-150, rely=0, y=5)
+
+        LABEL=ttk.Label(self.FRAME_for_icone, text=self.text_icone,font=('Helvetica', 18,'bold','italic'),foreground='blue').pack()
 
 
 
@@ -1040,19 +1198,50 @@ class muDIC_GUI:
         ###################################################################
 #####################################################################################
 
+
         # Frame pour user data
-        self.about_frame = ttk.LabelFrame(tab4, text='Credits')
-        self.about_frame.pack(
-             expand=1,
-                fill='both')
+        self.about_frame = tk.LabelFrame(tab5, text='Credits')
+        self.about_frame.grid(row=0,column=0)
+        tab5.grid_columnconfigure(0, weight=1)
+        tab5.grid_rowconfigure(0,weight=1)
+        # self.about_frame.pack(
+        #      expand=1,
+        #         fill='both')
+        # self.FRAME_for_icone=ttk.Frame(self.about_frame, width=10, height =10)
+        # self.FRAME_for_icone.place(in_=self.about_frame, relx=0.5, rely=0, y=50)
         text_width=np.max([len(self.text_icone+' has been developed by'),len('Guillaume Hervé-Secourgeon'),len(' based on '+u"\N{GREEK SMALL LETTER MU}"+"DIC Python Class developed by S.N. Olufsen"),len('muDIC: An open-source toolkit for digital image correlation, S.N. Olufsen et al., SoftwareX Volume 11, January–June 2020, 100391')])
-        text_credits = ttk.Label(self.about_frame, text=
+
+        LABEL=tk.Label(self.about_frame, text=self.text_icone,font=('Helvetica', 18,'bold','italic'),foreground='blue'
+                    #    ,width=text_width
+                       ,anchor='center')
+
+        # text_icone = ttk.Label(self.about_frame, text=
+        #                                self.text_icone,
+        #                                 width=text_width,justify='center',
+                                    #    )
+        LABEL.grid(row=0,column=0)
+
+        text_version = tk.Label(self.about_frame, text=self.mudicgui_version,font=('Helvetica', 14,'bold','italic'),foreground='blue'
+                    #    ,width=text_width
+                       ,anchor='center')
+        text_version.grid(row=1,column=0)
+        # self.FRAME_for_credits=ttk.Frame(self.about_frame, width=text_width, height =200)
+        # self.FRAME_for_credits.place(in_=self.about_frame, relx=0.5, rely=0, y=5)
+        
+        text_credits = tk.Label(self.about_frame, text=
                                        self.text_icone+' has been developed by\n Guillaume Hervé-Secourgeon\n based on '+u"\N{GREEK SMALL LETTER MU}"+"DIC Python Class developed by S.N. Olufsen \n muDIC: An open-source toolkit for digital image correlation, S.N. Olufsen et al., SoftwareX Volume 11, January–June 2020, 100391 \n https://www.sciencedirect.com/science/article/pii/S2352711019301967 \n MIT Licence \n (c) 2023 Copyright G. Hervé-Secourgeon"
-                                        ,width=text_width,justify='center'
+                                        ,width=text_width,justify='center',anchor='center'
+                                        ,font=('Helvetica', 10,'bold','italic')
                                        )
-        text_credits.pack(pady=100)
+        text_credits.grid(row=2,column=0)
         #place(in_=self.about_frame,relx=0.5,rely=0.5)
         #x=np.int64(np.round(text_width)),
+
+
+
+
+
+
 
 # Instanciation de l'application et exécution
 app = muDIC_GUI()
