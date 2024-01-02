@@ -1,9 +1,10 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import tkinter as tk
 import tkinter.font as font
 from tkinter import ttk
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
 import numpy as np
 from tkinter import filedialog
 import os
@@ -46,6 +47,10 @@ class muDIC_GUI:
         self.source_selection_path = None
         self.FEM_fig_photo_first = None
         self.mudicgui_version = 'v 0.1'
+        self.DIC_settings = None
+        self.DIC_results = None
+
+
     plt.rcParams['figure.figsize'] = [0.1, 0.1]
 
     def Close(self):
@@ -101,6 +106,9 @@ class muDIC_GUI:
         self.fig_photo_first = FigureCanvasTkAgg(self.preview_selection, master=self.canvas_FOV_ROI)
         self.fig_photo_first.draw()
         self.fig_photo_first.get_tk_widget().pack()
+        toolbar = NavigationToolbar2Tk(self.fig_photo_first, self.canvas_FOV_ROI)
+        toolbar.update()
+        self.fig_photo_first.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
 
 
@@ -147,7 +155,9 @@ class muDIC_GUI:
         self.FEM_fig_photo_first = FigureCanvasTkAgg(self.FEM_preview_selection, master=self.FEM_canvas_FOV_ROI)
         self.FEM_fig_photo_first.draw()
         self.FEM_fig_photo_first.get_tk_widget().pack()
-
+        toolbar = NavigationToolbar2Tk(self.FEM_fig_photo_first,self.FEM_canvas_FOV_ROI)
+        toolbar.update()
+        self.FEM_fig_photo_first.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
 
 
@@ -239,7 +249,9 @@ class muDIC_GUI:
     def select_component_quantity_of_interest_to_plot(self,event):
         self.component_quantity_of_interest =  self.component[self.list_combo_component_quantity_of_interest_to_plot.get()]
 
- 
+    def select_text_units(self,event):
+        self.text_units =  self.component[self.list_combo_text_units.get()]
+
     def FEM_generate(self):
         image = Image.open(self.FEM_first_image_file)
         w, h = image.size
@@ -271,6 +283,10 @@ class muDIC_GUI:
         self.FEM_fig_photo_first = FigureCanvasTkAgg(self.FEM_preview_selection, master=self.FEM_canvas_FOV_ROI)
         self.FEM_fig_photo_first.draw()
         self.FEM_fig_photo_first.get_tk_widget().pack()
+        # toolbar = NavigationToolbar2Tk(self.FEM_fig_photo_first,self.FEM_canvas_FOV_ROI)
+        # toolbar.update()
+        # self.FEM_fig_photo_first.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+
 
     def extract_number_fic(self,nom_fic=str):
         """
@@ -287,15 +303,6 @@ class muDIC_GUI:
             else:
                 break
         return number[::-1]
-
-
-
-
-
-
-
-
-
 
 
     def crop_images_to_ROI(self):
@@ -399,7 +406,7 @@ class muDIC_GUI:
         """
         self.all_fields = dic.post.viz.Fields(self.DIC_results,upscale=1)
 
-    def extract_fields(self,considered_frame):
+    def extract_fields_per_frame(self,considered_frame):
         """
         This method extracts the quantity of interest and its component for every finite element at every instant
         The coordinates in n_y direction are changed to cope with the orientation of the photoreceptor of the lense.
@@ -432,9 +439,33 @@ class muDIC_GUI:
                 # Because of Cauchy principle for isotropic medium we could have chosen also [0,:,:,:][1]
                 # as epsilon_xy = epsilon_yx 
 
+    def extract_fields_for_frame_list(self,frame_list=list):
+        self.selected_field_for_frame_list=[]
+        for i in frame_list:
+            self.selected_field_for_frame_list.append(self.extract_fields_per_frame(i))
+
+    def plot_fields(self,selected_frame=int):
+        print('toto')
+
+    def select_ref_length(self):
+        print('ref_length')
 
 
+    def cal_residual(self,disp_pixel_one_frame):
+        """
+        This method calculates the residual value per finite element
+        """
+        print("calc_residual")
 
+    def plot_fringe(self):
+        print('plot fringe')
+
+    def compute_test_char(self):
+        print('Compute test characteristics')
+        horiz_FOV = 2
+        verti_FOV = 2
+        self.H_FOV.configure(text=str(np.int64(horiz_FOV)))
+        self.V_FOV.configure(text=str(np.int64(verti_FOV)))
 
     def create_gui(self):
         """
@@ -465,7 +496,7 @@ class muDIC_GUI:
                          , fill='both'
                          )
         tab0.grid_columnconfigure(0, weight=1)
-        tab0.grid_rowconfigure(0,weight=1)
+        tab0.grid_rowconfigure(1,weight=1)
 
         tab1 = ttk.Frame(tab_control)
         tab_control.add(tab1, text='Pre-processing')
@@ -473,7 +504,8 @@ class muDIC_GUI:
                          , fill='both'
                          )
         tab1.grid_columnconfigure(0, weight=1)
-        tab1.grid_rowconfigure(0,weight=1)
+        tab1.grid_rowconfigure(1,weight=1)
+        # tab1.grid_size()
 
         # Definition of the ROI, creation of the mesh and calculation
         tab2 = ttk.Frame(tab_control)
@@ -482,16 +514,27 @@ class muDIC_GUI:
                          , fill='both'
                          )
         tab2.grid_columnconfigure(0, weight=1)
-        tab2.grid_rowconfigure(0,weight=1)
+        tab2.grid_rowconfigure(1,weight=1)
 
         # Post-processing of the different quantities of interest
         tab3 = ttk.Frame(tab_control)
-        tab_control.add(tab3, text='Post-processing')
+        tab_control.add(tab3, text='Post-processing fields')
         tab_control.pack(expand=1
                          , fill='both'
                          )
         tab3.grid_columnconfigure(0, weight=1)
-        tab3.grid_rowconfigure(0,weight=1)
+        tab3.grid_rowconfigure(1,weight=1)
+
+        tab3bis = ttk.Frame(tab_control)
+        tab_control.add(tab3bis, text='Post-processing local data')
+        tab_control.pack(expand=1
+                         , fill='both'
+                         )
+        tab3bis.grid_columnconfigure(0, weight=1)
+        tab3bis.grid_rowconfigure(1,weight=1)
+
+
+
 
         tab4 = ttk.Frame(tab_control)
         tab_control.add(tab4, text='DIC - Code_Aster dialogue')
@@ -499,7 +542,7 @@ class muDIC_GUI:
                          , fill='both'
                          )
         tab4.grid_columnconfigure(0, weight=1)
-        tab4.grid_rowconfigure(0,weight=1)
+        tab4.grid_rowconfigure(1,weight=1)
 
         tab5 = ttk.Frame(tab_control)
         tab_control.add(tab5, text='About')
@@ -507,7 +550,7 @@ class muDIC_GUI:
                          , fill='both'
                          )
         tab5.grid_columnconfigure(0, weight=1)
-        tab5.grid_rowconfigure(0,weight=1)
+        tab5.grid_rowconfigure(1,weight=1)
 
 
 #####################################################################################
@@ -530,12 +573,17 @@ class muDIC_GUI:
              # side='left',
             #   padx=2, pady=2
               )
+        self.FRAME_for_icone=ttk.Frame(frame_description_test_prep, width=10, height =10)
+        self.FRAME_for_icone.place(in_=frame_description_test_prep, relx=1.0, x=-150, rely=0, y=5)
+
+        LABEL=ttk.Label(self.FRAME_for_icone, text=self.text_icone,font=('Helvetica', 18,'bold','italic'),foreground='blue').pack()
+
 
 
 
         description_test_prep = 'The purpose of this tab is to set up the best achievable parameters in order to capture digital images on a test sample. The user will need to know \n   (1)The characteristics of the camera (sensor size, pixel size per unit length, lens, aperture. \n   (2)the largest size of the sample that will be observed, the magnitude of the quantities of interest that are expected to get. \nThis part will provide the size of the particles of the speckle to reach the expected magnitude of the quantities of interest.'
 
-        T1 = tk.Label(frame_description_test_prep
+        T1 = ttk.Label(frame_description_test_prep
                       ,text=description_test_prep
                       ,justify='left'
                       ,width=frame_width_description
@@ -554,7 +602,7 @@ class muDIC_GUI:
 
         description_preproc = 'The purpose of this tab is to prepare the images that have been captured during the test campaign. \nThe user shall have prepared the data so that they are as follows:\n   (1) Raw images - This means that they shall not have been compressed. TIF, TIFF, PNG, etc .. will be prefered. \n   (2) The image files shall terminate by their numbering: for example a set of name_of_the_file00xxx.tif. Where xxx can start at any value. The amount of 0 before the number can vary. \n   (3)The files shall be in the same directory. \n The user can resize the images in order to get rid of elements in the field of view that are not useful in the analysis. \n The user will specify different options to store the cropped images as: \n   (1)The prefix of the output images. \n   (2)The target directory where they will be stored. \n   (3)The format of the numbering of the images. \n   (4)The extension of the files: .tiff, .png, etc ...'
 
-        T1 = tk.Label(frame_description_preproc
+        T1 = ttk.Label(frame_description_preproc
                       ,text=description_preproc
                       ,justify='left'
                       ,width=frame_width_description
@@ -577,7 +625,7 @@ class muDIC_GUI:
 
         description_DIC = 'The purpose of this tab is to prepare and run the DIC analysis. \nFirst the user will identify the ROI on the image by selecting it on the preview of the first image of the set of captured data. \nThen it possible to chose the properties of the mesh that is generated: \n   (1) The type of element: Q4 or T3 (not supported for the moment) \n   (2) The amount of pixels per element side. The element are built as square as possible considering the size of the ROI and the density of pixels per element. \nWhen the ROI is meshed, it is possible to run the muDIC solver, by selecting it different settings as:\n   (1)The reference image \n   (2)The last image that is analyzed\n   (3)The max. number of iterations of each convergence step\n   (4)The tolerance for each convergence step\n   (5)...'
 
-        T1 = tk.Label(frame_DIC,
+        T1 = ttk.Label(frame_DIC,
                       text=description_DIC,
                       justify='left',
                       width=frame_width_description,
@@ -598,7 +646,7 @@ class muDIC_GUI:
 
         description_postproc = 'The purpose of this tab is to post-process the result of the DIC solver.\nFor this purpose, the user will have the choice to keep the pixels as unit or to define with a GUI on clicking on a reference on screen whose actual length is well known.\nThe scale parameter between pixels and actual unit that have been selected by the user (mm,cm,m)\nIt is possible to select amoung the different quantities of interest produced by the solver and that the user can scroll.\nIt is also possible to pick a specific point and plot its evolution (displacement, velocity, acceleration) along time.\nThen it is possible to calculate SDOF-Response spectrum or to carry out Cauchy Continuous Wavelet Transform analysis.'
 
-        T1 = tk.Label(frame_description_postproc,
+        T1 = ttk.Label(frame_description_postproc,
                       text=description_postproc,
                       justify='left',
                       width=frame_width_description,
@@ -620,7 +668,7 @@ class muDIC_GUI:
               )
 
         description_DIC_Code_Aster = 'This last tab provides the possibility to prepare a Code_Aster computation based on the meshed ROI and its boundary conditions in displacement along time.\nA Code_Aster command file is generated. It accounts for:\n   (1)A condensation of the displacement on a polynomial basis, along time and along the segment of the sample that are selected on screen by the user.\n   (2)A set of material properties among those that are proposed in Code_Aster (focusing on elastic, viscoplastic or damage constitutive equations.'
-        T1 = tk.Label(frame_description_code_aster_dialogue,
+        T1 = ttk.Label(frame_description_code_aster_dialogue,
                       text=description_DIC_Code_Aster,
                       justify='left',
                       width=frame_width_description,
@@ -641,7 +689,7 @@ class muDIC_GUI:
 
 
 
-        FRAME_for_quit=tk.Frame(frame_for_button_and_icone,
+        FRAME_for_quit=ttk.Frame(frame_for_button_and_icone,
                                 # width=10,
                                 # height =10
                                 )
@@ -668,24 +716,297 @@ class muDIC_GUI:
         # Code lines related to the experimental preparation / speckle choice #
         #######################################################################
 #####################################################################################
-        test_prep_frame = ttk.LabelFrame(tab0, text='Test campaign preparation')
-        test_prep_frame.pack(expand=1, fill='both', padx=2, pady=2)
+        # test_prep_frame = ttk.LabelFrame(tab0, text='Test campaign preparation')
+        # test_prep_frame.pack(expand=1, fill='x', padx=2, pady=2)
 
 
-        self.FRAME_for_icone=ttk.Frame(test_prep_frame, width=10, height =10)
-        self.FRAME_for_icone.place(in_=test_prep_frame, relx=1.0, x=-150, rely=0, y=5)
+        # self.FRAME_for_icone=ttk.Frame(test_prep_frame, width=10, height =10)
+        # self.FRAME_for_icone.place(in_=test_prep_frame, relx=1.0, x=-150, rely=0, y=5)
 
-        LABEL=ttk.Label(self.FRAME_for_icone, text=self.text_icone,font=('Helvetica', 18,'bold','italic'),foreground='blue').pack()
+        # LABEL=ttk.Label(self.FRAME_for_icone, text=self.text_icone,font=('Helvetica', 18,'bold','italic'),foreground='blue').pack()
+
+        # Frame pour user data
+        setup_properties = ttk.LabelFrame(tab0, text='Setup properties')
+        # preprocessing_frame.pack(expand=1,fill='x',padx=2, pady=2)
+        
+        experimental_sketch = ttk.LabelFrame(tab0, text='Sketch of exprimental setup')
+        # self.preview_first_image_frame.pack(expand=0, fill='x', padx=2, pady=2)
+
+        experimental_capabilities = ttk.LabelFrame(tab0, text='Experimental capabilitie and speckle recommandation',height=100)
+        # ROI_frame.pack(expand=1, fill='x', padx=2, pady=2)
+
+        setup_properties.grid(row=0, column=0, sticky="nswe")
+        experimental_sketch.grid(row=1, column=0, sticky="nswe")
+        experimental_capabilities.grid(row=2, column=0, sticky="nswe")
+
+############################################################################
+        # Text area to define the prefix of the images
+        focal_length_text = 'Focal length [mm]:'
+        focal_length = ttk.Label(setup_properties, text=focal_length_text,anchor='e',
+                                #   width=len(text_object_label2)
+                                        width=len(focal_length_text))
+        focal_length.grid(row=1, column=6, padx=2, pady=2)
+        self.focal_length_value = ttk.Entry(setup_properties,width=5)
+        self.focal_length_value.insert(0, 28)
+        self.focal_length_value.grid(row=1, column=7, padx=2, pady=2)
+
+        sensor_size_H_text = 'Sensor size (H)[mm]:'
+        sensor_size_H = ttk.Label(setup_properties, text=sensor_size_H_text,anchor='e',
+                                #   width=len(text_object_label2)
+                                        width=len(sensor_size_H_text))
+        sensor_size_H.grid(row=0, column=2, padx=2, pady=2)
+        self.sensor_size_H_value = ttk.Entry(setup_properties,width=5)
+        self.sensor_size_H_value.insert(0, 11)
+        self.sensor_size_H_value.grid(row=0, column=3, padx=2, pady=2)
+
+        sensor_size_V_text = '(V)[mm]:'
+        sensor_size_V = ttk.Label(setup_properties, text=sensor_size_V_text,anchor='e',
+                                #   width=len(text_object_label2)
+                                        width=len(sensor_size_V_text))
+        sensor_size_V.grid(row=0, column=4, padx=2, pady=2)
+        self.sensor_size_V_value = ttk.Entry(setup_properties,width=5)
+        self.sensor_size_V_value.insert(0, 8)
+        self.sensor_size_V_value.grid(row=0, column=5, padx=2, pady=2)
+
+        self.pixel_input= tk.IntVar(value=1)
+
+        ttk.Radiobutton(setup_properties,text='Pixel size',variable=self.pixel_input, value=1).grid(row=1, column=0, padx=2, pady=2)
+        ttk.Radiobutton(setup_properties,text='Number of pixels',variable=self.pixel_input, value=2).grid(row=1, column=2, padx=2, pady=2)
+
+        pixel_size_cam_text = 'Px size in '+u"\N{GREEK SMALL LETTER MU}"+'m:'
+        pixel_size_cam = ttk.Label(setup_properties, text=pixel_size_cam_text,anchor='e',
+                                #   width=len(text_object_label2)
+                                        width=len(pixel_size_cam_text))
+        pixel_size_cam.grid(row=2, column=0, padx=2, pady=2)
+        self.pixel_size_cam_value = ttk.Entry(setup_properties,width=5)
+        self.pixel_size_cam_value.insert(0, 3.76)
+        self.pixel_size_cam_value.grid(row=2, column=1, padx=2, pady=2)
+
+        pixel_numer_H_cam_text = 'Number of pixels (H):'
+        pixel_numer_H_cam = ttk.Label(setup_properties, text=pixel_numer_H_cam_text,anchor='e',
+                                #   width=len(text_object_label2)
+                                        width=len(pixel_numer_H_cam_text))
+        pixel_numer_H_cam.grid(row=2, column=2, padx=2, pady=2)
+        self.pixel_numer_H_cam_value = ttk.Entry(setup_properties,width=5)
+        self.pixel_numer_H_cam_value.insert(0, 2900)
+        self.pixel_numer_H_cam_value.grid(row=2, column=3, padx=2, pady=2)
+
+        pixel_numer_V_cam_text = '(V) [mm]:'
+        pixel_numer_V_cam = ttk.Label(setup_properties, text=pixel_numer_V_cam_text,anchor='e',
+                                #   width=len(text_object_label2)
+                                        width=len(pixel_numer_V_cam_text))
+        pixel_numer_V_cam.grid(row=2, column=4, padx=2, pady=2)
+        self.pixel_numer_V_cam_value = ttk.Entry(setup_properties,width=5)
+        self.pixel_numer_V_cam_value.insert(0, 2100)
+        self.pixel_numer_V_cam_value.grid(row=2, column=5, padx=2, pady=2)
+
+
+        # Text area to define the prefix of the images
+        distance_to_target_text = 'Distance to target [m]:'
+        distance_to_target = ttk.Label(setup_properties, text=distance_to_target_text,anchor='e',
+                                #   width=len(text_object_label2)
+                                        width=len(distance_to_target_text))
+        distance_to_target.grid(row=0, column=6, padx=2, pady=2)
+        self.distance_to_target_value = ttk.Entry(setup_properties,width=5)
+        self.distance_to_target_value.insert(0, 2)
+        self.distance_to_target_value.grid(row=0, column=7, padx=2, pady=2)
+
+        self.camera_type_dict = {}
+        self.camera_type_dict['Mono']='Mono'
+        self.camera_type_dict['Color']='Color'
+
+
+        camera_type_text = 'Camera type:'
+        camera_type = ttk.Label(setup_properties, text=camera_type_text,anchor='e',
+                                #   width=len(text_object_label2)
+                                        width=len(camera_type_text))
+        camera_type.grid(row=0, column=0, padx=2, pady=2)
+       # list of the supported FEM - For the moment only Q4 are supported
+        #self.list_quantity_of_interest_to_plot = ['True strain','Deformation gradient','Engineering strain','Displacement','Coordinates','Green strain']
+        self.list_camera_type = list(self.camera_type_dict.keys())
+        # creation comboBox
+        self.list_combo_camera_type=ttk.Combobox(setup_properties, values=self.list_camera_type,width=5)
+        default_camera_type = 1
+        self.list_combo_camera_type.current(default_camera_type)
+        #Position de la ComboBox
+
+        # Attribution of default value in case the user is satisfied with the proposed one
+        self.list_combo_camera_type.bind("<<ComboboxSelected>>",self.select_quantity_of_interest_to_plot)
+
+        self.list_combo_camera_type.grid(row=0, column=1, padx=2, pady=2)
 
 
 
 
+        # Text area to define the prefix of the images
+        smallest_size_text = 'Smallest sample size [mm]:'
+        smallest_size = ttk.Label(setup_properties, text=smallest_size_text,anchor='e',
+                                #   width=len(text_object_label2)
+                                        width=len(smallest_size_text))
+        smallest_size.grid(row=2, column=6, padx=2, pady=2)
+        self.smallest_size_text_value = ttk.Entry(setup_properties,width=5)
+        self.smallest_size_text_value.insert(0, 120)
+        self.smallest_size_text_value.grid(row=2, column=7, padx=2, pady=2)
+
+
+        # Text area to define the prefix of the images
+        number_of_camera_text = 'Number of cameras:'
+        number_of_camera = ttk.Label(setup_properties, text=number_of_camera_text,anchor='e',
+                                #   width=len(text_object_label2)
+                                        width=len(number_of_camera_text))
+        number_of_camera.grid(row=0, column=8, padx=2, pady=2)
+        self.number_of_camera_text_value = ttk.Entry(setup_properties,width=5)
+        self.number_of_camera_text_value.insert(0, 1)
+        self.number_of_camera_text_value.grid(row=0, column=9, padx=2, pady=2)
+
+        # Text area to define the prefix of the images
+        cover_pct_text = 'Cover %age:'
+        cover_pct = ttk.Label(setup_properties, text=cover_pct_text,anchor='e',
+                                #   width=len(text_object_label2)
+                                        width=len(cover_pct_text))
+        cover_pct.grid(row=1, column=8, padx=2, pady=2)
+        self.cover_pct_value = ttk.Entry(setup_properties,width=5)
+        self.cover_pct_value.insert(0, 10)
+        self.cover_pct_value.grid(row=1, column=9, padx=2, pady=2)
+
+        self.cover_direction = {}
+        self.cover_direction['Vert.']='Vertical'
+        self.cover_direction['Hor.']='Horizontal'
+
+        cover_direction_text = 'Cover direction:'
+        cover_direction = ttk.Label(setup_properties, text=cover_direction_text,anchor='e',
+                                #   width=len(text_object_label2)
+                                        width=len(cover_direction_text))
+        cover_direction.grid(row=2, column=8, padx=2, pady=2)
+       # list of the supported FEM - For the moment only Q4 are supported
+        #self.list_quantity_of_interest_to_plot = ['True strain','Deformation gradient','Engineering strain','Displacement','Coordinates','Green strain']
+        self.list_cover_direction = list(self.cover_direction.keys())
+        # creation comboBox
+        self.list_combo_cover_direction=ttk.Combobox(setup_properties, values=self.list_cover_direction,width=5)
+        default_cover_direction = 1
+        self.list_combo_cover_direction.current(default_cover_direction)
+        #Position de la ComboBox
+
+        # Attribution of default value in case the user is satisfied with the proposed one
+        self.list_combo_cover_direction.bind("<<ComboboxSelected>>",self.select_quantity_of_interest_to_plot)
+
+        self.list_combo_cover_direction.grid(row=2, column=9, padx=2, pady=2)
+################################################################################################
+        ######################## Frame content : test sketch ############################
+################################################################################################
+
+        experimental_sketch.grid_columnconfigure(1, weight=1)
+        experimental_sketch.grid_rowconfigure(0, weight=1)
+
+        top_view_sketch = ttk.LabelFrame(experimental_sketch, text='Top view')
+
+        # field_to_plot.pack(anchor='n')
+        # field_to_plot.place(in_=field_frame,
+        #                     x=5,
+        #                     # y=pos_vert_frame
+        #                     )
+        self.canvas_top_view = tk.Canvas(top_view_sketch)
+#        self.canvas_FOV_ROI.pack(expand=1, fill='both')
+        self.canvas_top_view.pack()
+        side_view_sketch = ttk.LabelFrame(experimental_sketch, text='Side view')
+        # frame_to_plot.pack(anchor='n')
+        # frame_to_plot.place(in_=field_frame,
+        #                     x=5,
+        #                     y=140
+        #                     # y=140-pos_vert_frame
+        #                     )
+        self.canvas_side_view = tk.Canvas(side_view_sketch)
+#        self.canvas_FOV_ROI.pack(expand=1, fill='both')
+        self.canvas_side_view.pack()
+
+        top_view_sketch.grid(row=0, column=0, sticky="nsew")
+        side_view_sketch.grid(row=0, column=1, sticky="nsew")
+
+
+################################################################################################
+
+        myFont = font.Font(weight="bold")
+        calculate_test_recom_button = tk.Button(experimental_capabilities,text = "Compute test characteristics", command=self.compute_test_char,foreground='white',background='blue')
+        calculate_test_recom_button['font'] = myFont
+        calculate_test_recom_button.grid(row=0, column=0, padx=2, pady=2)
 
 
 
 
+        # calculate_test_recom_button = tk.Button(experimental_capabilities, text="Compute test characteristics", command=self.compute_test_char)
+        # calculate_test_recom_button.grid(row=0, column=0, padx=2, pady=2)
 
 
+        nb_pixel_per_spot_text = 'Number of px per spot:'
+        nb_pixel_per_spot = ttk.Label(experimental_capabilities, text=nb_pixel_per_spot_text,anchor='e',
+                                #   width=len(text_object_label2)
+                                        width=len(nb_pixel_per_spot_text))
+        nb_pixel_per_spot.grid(row=1, column=0, padx=2, pady=2)
+        self.nb_pixel_per_spot_value = ttk.Entry(experimental_capabilities,width=5)
+        self.nb_pixel_per_spot_value.insert(0, 5)
+        self.nb_pixel_per_spot_value.grid(row=1, column=1, padx=2, pady=2)
+
+
+
+
+        observation_H_FOV_text = 'FOV size [m] (H):'
+        observation_H_FOV = ttk.Label(experimental_capabilities, text=observation_H_FOV_text,anchor='e',
+                                #   width=len(text_object_label2)
+                                        width=len(observation_H_FOV_text))
+        observation_H_FOV.grid(row=0, column=2, padx=2, pady=2)
+        self.H_FOV = ttk.Label(experimental_capabilities, text='No value yet',foreground='blue')
+        self.H_FOV.grid(row=0, column=3, padx=2, pady=2)
+        observation_V_FOV_text = '(V):'
+        observation_V_FOV = ttk.Label(experimental_capabilities, text=observation_V_FOV_text,anchor='e',
+                                #   width=len(text_object_label2)
+                                        width=len(observation_V_FOV_text))
+        observation_V_FOV.grid(row=0, column=4, padx=2, pady=2)
+
+        self.V_FOV = ttk.Label(experimental_capabilities, text='No value yet',foreground='blue')
+        self.V_FOV.grid(row=0, column=5, padx=2, pady=2)
+############################################################################
+        definition_FOV_text = 'Smallest sample def. [px]:'
+        definition_FOV = ttk.Label(experimental_capabilities, text=definition_FOV_text,anchor='e',
+                                #   width=len(text_object_label2)
+                                        width=len(definition_FOV_text))
+        definition_FOV.grid(row=0, column=6, padx=2, pady=2)
+        self.definition_FOV = ttk.Label(experimental_capabilities, text='No value yet',foreground='blue')
+        self.definition_FOV.grid(row=0, column=7, padx=2, pady=2)
+
+###################################################################################################
+        resolution_FOV_text = 'FOV res. [mm/px]:'
+        resolution_FOV = ttk.Label(experimental_capabilities, text=resolution_FOV_text,anchor='e',
+                                #   width=len(text_object_label2)
+                                        width=len(resolution_FOV_text))
+        resolution_FOV.grid(row=1, column=2, padx=2, pady=2)
+        self.resolution_FOV = ttk.Label(experimental_capabilities, text='No value yet',foreground='blue')
+        self.resolution_FOV.grid(row=1, column=3, padx=2, pady=2)
+        # resolution_V_FOV_text = '(V):'
+        # resolution_V_FOV = ttk.Label(experimental_capabilities, text=resolution_V_FOV_text,anchor='e',
+        #                         #   width=len(text_object_label2)
+        #                                 width=len(resolution_V_FOV_text))
+        # resolution_V_FOV.grid(row=1, column=4, padx=2, pady=2)
+
+        # self.resolution_V_FOV = ttk.Label(experimental_capabilities, text='No value yet',foreground='blue')
+        # self.resolution_V_FOV.grid(row=1, column=5, padx=2, pady=2)        
+###########################################################################################
+        speckle_diam_text = 'Speckle size [mm]:'
+        speckle_diam = ttk.Label(experimental_capabilities, text=speckle_diam_text,anchor='e',
+                                #   width=len(text_object_label2)
+                                        width=len(speckle_diam_text))
+        speckle_diam.grid(row=1, column=6, padx=2, pady=2)
+
+        self.speckle_diam_value = ttk.Label(experimental_capabilities, text='No value yet',foreground='blue')
+        self.speckle_diam_value.grid(row=1, column=7, padx=2, pady=2)        
+
+        distance_2_cams_text = '2 cameras dist. [m]:'
+        distance_2_cams = ttk.Label(experimental_capabilities, text=distance_2_cams_text,anchor='e',
+                                #   width=len(text_object_label2)
+                                        width=len(distance_2_cams_text))
+        distance_2_cams.grid(row=0, column=8, padx=2, pady=2)
+
+        self.distance_2_cams_value = ttk.Label(experimental_capabilities, text='No value yet',foreground='blue')
+        self.distance_2_cams_value.grid(row=0, column=9, padx=2, pady=2)        
 
 
 #####################################################################################
@@ -695,28 +1016,28 @@ class muDIC_GUI:
 #####################################################################################
 
         # Frame pour user data
-        preprocessing_frame = tk.LabelFrame(tab1, text='Selection of the experimental raw images')
-        preprocessing_frame.pack(
-             expand=1,
-              fill='both',
-             # side='left',
-              padx=2, pady=2)
+        preprocessing_frame = ttk.LabelFrame(tab1, text='Selection of the experimental raw images')
+        # preprocessing_frame.pack(expand=1,fill='x',padx=2, pady=2)
+        
+        self.preview_first_image_frame = ttk.LabelFrame(tab1, text='Experimental field of view')
+        # self.preview_first_image_frame.pack(expand=0, fill='x', padx=2, pady=2)
 
+        ROI_frame = ttk.LabelFrame(tab1, text='Resizing the experimental images',height=100)
+        # ROI_frame.pack(expand=1, fill='x', padx=2, pady=2)
 
-        self.FRAME_for_icone=ttk.Frame(preprocessing_frame, width=10, height =10)
-        self.FRAME_for_icone.place(in_=preprocessing_frame, relx=1.0, x=-150, rely=0, y=5)
-
-        LABEL=ttk.Label(self.FRAME_for_icone, text=self.text_icone,font=('Helvetica', 18,'bold','italic'),foreground='blue').pack()
+        preprocessing_frame.grid(row=0, column=0, sticky="nswe")
+        self.preview_first_image_frame.grid(row=1, column=0, sticky="nswe")
+        ROI_frame.grid(row=2, column=0, sticky="nswe")
 
 
         #preprocessing_frame.grid_columnconfigure(0, weight=1)
         #preprocessing_frame.grid_rowconfigure(0,weight=1)
 
 
-        chose_path_button = tk.Button(preprocessing_frame, text="1-Select the folder location of the images", command=self.select_images_folder)
+        chose_path_button = tk.Button(preprocessing_frame, text="1-Select folder", command=self.select_images_folder)
         chose_path_button.grid(row=0, column=0, padx=2, pady=2)
 
-        chose_first_raw_file_button = tk.Button(preprocessing_frame, text="2-Select the first image", command=self.select_first_image)
+        chose_first_raw_file_button = tk.Button(preprocessing_frame, text="2-Select first image", command=self.select_first_image)
         chose_first_raw_file_button.grid(row=0, column=1, padx=2, pady=2)
 
         import_first_image_button = tk.Button(preprocessing_frame,text = "3-View first image", command = self.first_image_view)
@@ -738,8 +1059,6 @@ class muDIC_GUI:
 ######################################################################################################
         # Frame showing the first images of the stack
 ######################################################################################################
-        self.preview_first_image_frame = ttk.LabelFrame(tab1, text='Experimental field of view')
-        self.preview_first_image_frame.pack(expand=0, fill='both', padx=2, pady=2)
 
         # Canvas pour afficher l'aperçu
         self.canvas_FOV_ROI = tk.Canvas(self.preview_first_image_frame)
@@ -752,10 +1071,8 @@ class muDIC_GUI:
 ######################################################################################################
         
 
-        ROI_frame = tk.LabelFrame(tab1, text='Resizing the experimental images',height=100)
-        ROI_frame.pack(expand=1, fill='x', padx=2, pady=2)
 
-        select_ROI_button = tk.Button(ROI_frame,text = "Resizing the image on screen", command = self.select_ROI_rectangle)
+        select_ROI_button = tk.Button(ROI_frame,text = "Select zone to crop", command = self.select_ROI_rectangle)
         select_ROI_button.grid(row=0, column=4, padx=2, pady=2)
 
         # show_ROI_button = tk.Button(ROI_frame,text = "Apply ROI selection", command = self.plot_ROI_on_fig)
@@ -794,7 +1111,7 @@ class muDIC_GUI:
         # Text area to define the prefix of the images
         prepare_resize_ROI_files = ttk.Label(ROI_frame, text='Number of files to crop:')
         prepare_resize_ROI_files.grid(row=1, column=2, padx=2, pady=2)
-        self.prepare_resize_ROI_files_entry = ttk.Entry(ROI_frame)
+        self.prepare_resize_ROI_files_entry = ttk.Entry(ROI_frame,width=6)
         self.prepare_resize_ROI_files_entry.insert(0, 2)
         self.prepare_resize_ROI_files_entry.grid(row=1, column=3, padx=2, pady=2)
 
@@ -843,12 +1160,14 @@ class muDIC_GUI:
 
 
         #prepare_resize_ROI_button = tk.Button(ROI_frame,text = "Generate default output directory", command=lambda:[self.create_output_folder, get_number_of_files()])
-        prepare_resize_ROI_button1 = tk.Button(ROI_frame,text = "Generate default output directory", command=self.create_output_folder)
+        prepare_resize_ROI_button1 = tk.Button(ROI_frame,text = "Create output dir.", command=self.create_output_folder)
         prepare_resize_ROI_button1.grid(row=1, column=4, padx=2, pady=2)
 
-
-        resize_ROI_button = tk.Button(ROI_frame,text = "Export cropped images", command=self.crop_images_to_ROI)
+        myFont = font.Font(weight="bold")
+        resize_ROI_button = tk.Button(ROI_frame,text = "Export", command=self.crop_images_to_ROI,foreground='white',background='blue')
+        resize_ROI_button['font'] = myFont
         resize_ROI_button.grid(row=2, column=4, padx=2, pady=2)
+
 
 ##################################################################################################
         ###############################################################################
@@ -859,20 +1178,21 @@ class muDIC_GUI:
 
 
         FEM_frame = ttk.LabelFrame(tab2, text='Experimental Images View and Stacking')
-        FEM_frame.pack(expand=1, fill='both', padx=2, pady=2)
+        FEM_frame.grid(row=0, column=0, sticky="nswe")
+        # FEM_frame.pack(expand=1, fill='x', padx=2, pady=2)
 
-        self.FRAME_for_icone=ttk.Frame(FEM_frame, width=10, height =10)
-        self.FRAME_for_icone.place(in_=FEM_frame, relx=1.0, x=-150, rely=0, y=5)
+        # self.FRAME_for_icone=ttk.Frame(FEM_frame, width=10, height =10)
+        # self.FRAME_for_icone.place(in_=FEM_frame, relx=1.0, x=-150, rely=0, y=5)
 
-        LABEL=ttk.Label(self.FRAME_for_icone, text=self.text_icone,font=('Helvetica', 18,'bold','italic'),foreground='blue').pack()
-
-
+        # LABEL=ttk.Label(self.FRAME_for_icone, text=self.text_icone,font=('Helvetica', 18,'bold','italic'),foreground='blue').pack()
 
 
-        FEM_chose_path_button = tk.Button(FEM_frame, text="1-Select the folder location of the images", command=self.FEM_select_images_folder)
+
+
+        FEM_chose_path_button = tk.Button(FEM_frame, text="1-Select folder", command=self.FEM_select_images_folder)
         FEM_chose_path_button.grid(row=0, column=0, padx=2, pady=2)
 
-        FEM_chose_first_raw_file_button = tk.Button(FEM_frame, text="2-Select the first image", command=self.FEM_select_first_image)
+        FEM_chose_first_raw_file_button = tk.Button(FEM_frame, text="2-Select first image", command=self.FEM_select_first_image)
         FEM_chose_first_raw_file_button.grid(row=0, column=1, padx=2, pady=2)
 
         FEM_import_first_image_button = tk.Button(FEM_frame,text = "3-View first image", command = self.FEM_first_image_view)
@@ -886,20 +1206,20 @@ class muDIC_GUI:
         FEM_nb_stack_images = ttk.Label(FEM_frame, text=FEM_nb_stack_images,anchor='e',
                                 #   width=len(text_object_label2)
                                         width=len('per Finite Element side:'))
-        FEM_nb_stack_images.grid(row=1, column=0, padx=2, pady=2)
+        FEM_nb_stack_images.grid(row=0, column=3, padx=2, pady=2)
         self.FEM_nb_stack_images = ttk.Entry(FEM_frame,width=5)
         self.FEM_nb_stack_images.insert(0, 10)
 
-        self.FEM_nb_stack_images.grid(row=1, column=1, padx=2, pady=2)
+        self.FEM_nb_stack_images.grid(row=0, column=4, padx=2, pady=2)
 
-        FEM_text_chose_path_button = "4-Images stacking"
+        FEM_text_chose_path_button = "4-Stack images"
         FEM_chose_path_button = tk.Button(FEM_frame, text=FEM_text_chose_path_button, command=self.image_stacking
                                     #    , width=len(text_chose_path_button)
                                        )
-        FEM_chose_path_button.grid(row=1, column=2, padx=2, pady=2)
+        FEM_chose_path_button.grid(row=0, column=5, padx=2, pady=2)
         
-        FEM_select_ROI_button = tk.Button(FEM_frame,text = "5-Define rectangular ROI on screen", command = self.FEM_select_ROI_rectangle)
-        FEM_select_ROI_button.grid(row=1, column=3, padx=2, pady=2)
+        FEM_select_ROI_button = tk.Button(FEM_frame,text = "5-Define ROI on screen", command = self.FEM_select_ROI_rectangle)
+        FEM_select_ROI_button.grid(row=0, column=6, padx=2, pady=2)
 
 
 
@@ -915,8 +1235,8 @@ class muDIC_GUI:
     # Frame for vizualizing the ROI on the cropped images
 #########################################################################################
         self.FEM_preview_first_image_frame = ttk.LabelFrame(tab2, text='ROI selection and meshing')
-        self.FEM_preview_first_image_frame.pack(expand=0, fill='both', padx=2, pady=2)
-
+        # self.FEM_preview_first_image_frame.pack(expand=0, fill='x', padx=2, pady=2)
+        self.FEM_preview_first_image_frame.grid(row=1, column=0, sticky="nswe")
         # Canvas pour afficher l'aperçu
         self.FEM_canvas_FOV_ROI = tk.Canvas(self.FEM_preview_first_image_frame)
 #        self.canvas_FOV_ROI.pack(expand=1, fill='both')
@@ -927,7 +1247,8 @@ class muDIC_GUI:
 ##############################################################################################
 
         FEM_ROI_frame = ttk.LabelFrame(tab2, text='Definition of the ROI')
-        FEM_ROI_frame.pack(expand=1, fill='both', padx=2, pady=2)
+        FEM_ROI_frame.grid(row=2, column=0, sticky="nswe")
+        # pack(expand=1, fill='x', padx=2, pady=2)
 
 
         # show_ROI_button = tk.Button(ROI_frame,text = "Apply ROI selection", command = self.plot_ROI_on_fig)
@@ -998,7 +1319,8 @@ class muDIC_GUI:
 #########################################################################################
 
         DIC_solver_frame = ttk.LabelFrame(tab2, text='DIC solver')
-        DIC_solver_frame.pack(expand=1, fill='both', padx=2, pady=2)
+        DIC_solver_frame.grid(row=3, column=0, sticky="nswe")
+        # DIC_solver_frame.pack(expand=1, fill='x', padx=2, pady=2)
 
         first_image_for_DIC = ttk.Label(DIC_solver_frame, text='First (reference) image of the DIC solver:')
         first_image_for_DIC.grid(row=0, column=0, padx=2, pady=2)
@@ -1095,24 +1417,55 @@ class muDIC_GUI:
 
 
         field_frame = ttk.LabelFrame(tab3, text='Field of quantities of interest')
-        field_frame.pack(expand=1, fill='both', padx=2, pady=2)
+        # field_frame.pack(expand=1, fill='x', padx=2, pady=2)
+        field_frame.grid(row=0, column=0, sticky='nswe')
+       
+        field_frame.grid_columnconfigure(1, weight=1)
+        field_frame.grid_rowconfigure(0, weight=1)
+        # field_frame.grid_columnconfigure(0, weight=1)
+        # field_frame.grid_columnconfigure(1, weight=1)
+        # field_frame.grid_rowconfigure(0, weight=1)
+        # field_frame.grid_rowconfigure(1, weight=1)
 
-        self.FRAME_for_icone=ttk.Frame(field_frame, width=10, height =10)
-        self.FRAME_for_icone.place(in_=field_frame, relx=1.0, x=-150, rely=0, y=5)
+        # self.FRAME_for_icone=ttk.Frame(field_frame, width=10, height =10)
+        # self.FRAME_for_icone.place(in_=field_frame, relx=1.0, x=-150, rely=0, y=5)
 
-        LABEL=ttk.Label(self.FRAME_for_icone, text=self.text_icone,font=('Helvetica', 18,'bold','italic'),foreground='blue').pack()
+        # LABEL=ttk.Label(self.FRAME_for_icone, text=self.text_icone,font=('Helvetica', 18,'bold','italic'),foreground='blue').pack()
+
+        # pos_vert_frame = 1
+        field_to_plot = ttk.LabelFrame(field_frame, text='Quantity of interest - Units')
+        # field_to_plot.pack(anchor='n')
+        # field_to_plot.place(in_=field_frame,
+        #                     x=5,
+        #                     # y=pos_vert_frame
+        #                     )
+
+        frame_to_plot = ttk.LabelFrame(field_frame, text='Frame selection')
+        # frame_to_plot.pack(anchor='n')
+        # frame_to_plot.place(in_=field_frame,
+        #                     x=5,
+        #                     y=140
+        #                     # y=140-pos_vert_frame
+        #                     )
+
+
+        range_to_plot = ttk.LabelFrame(field_frame, text='Range')
+        # range_to_plot.pack(anchor='ne')
+        # range_to_plot.place(in_=field_frame,
+        #                     # y=pos_vert_frame,
+        #                     x=610
+        #                     )
+        field_to_plot.grid(row=0, column=0, sticky="ns")
+        frame_to_plot.grid(row=0, column=1, sticky="nsew")
+        range_to_plot.grid(row=0, column=2, sticky="ns")
 
 
 
-        local_measurement_frame = ttk.LabelFrame(tab3, text='Local measurements')
-        local_measurement_frame.pack(expand=1, fill='both', padx=2, pady=2)
+        frame_for_plot_button=ttk.Frame(range_to_plot, width=10, height =10)
+        frame_for_plot_button.place(in_=range_to_plot,rely=1,y=-30,relx=1,x=-50)
 
-        self.FRAME_for_icone=ttk.Frame(local_measurement_frame, width=10, height =10)
-        self.FRAME_for_icone.place(in_=local_measurement_frame, relx=1.0, x=-150, rely=0, y=5)
 
-        # Creating a dict with the correspondance between the keywords of the fields that 
-        # are implemented in terms immediatly meanful for the user
-
+############################################################################################
         self.fields = {}
         self.fields['True strain']='true_strain()'
         self.fields['Deformation gradient']='F()'
@@ -1122,18 +1475,21 @@ class muDIC_GUI:
         self.fields['Green strain']='green_strain()'
         
         text_quantity_of_interest_to_plot = 'Quantity of interest:'
-        quantity_of_interest_to_plot = ttk.Label(field_frame, text=text_quantity_of_interest_to_plot,anchor='e',width=len(text_quantity_of_interest_to_plot)
+        quantity_of_interest_to_plot = ttk.Label(field_to_plot, text=text_quantity_of_interest_to_plot,anchor='e',width=len(text_quantity_of_interest_to_plot)
                              )
-        quantity_of_interest_to_plot.grid(row=0, column=0, padx=2, pady=2)
        # list of the supported FEM - For the moment only Q4 are supported
         #self.list_quantity_of_interest_to_plot = ['True strain','Deformation gradient','Engineering strain','Displacement','Coordinates','Green strain']
         self.list_quantity_of_interest_to_plot = list(self.fields.keys())
         # creation comboBox
-        self.list_combo_quantity_of_interest_to_plot=ttk.Combobox(field_frame, values=self.list_quantity_of_interest_to_plot,width=len('Deformation gradient'))
+        self.list_combo_quantity_of_interest_to_plot=ttk.Combobox(field_to_plot, values=self.list_quantity_of_interest_to_plot,width=len('Deformation gradient'))
         default_quantity_of_interest_to_plot = 3
         self.list_combo_quantity_of_interest_to_plot.current(default_quantity_of_interest_to_plot)
         #Position de la ComboBox
+
+        quantity_of_interest_to_plot.grid(row=0,column=0, padx=2, pady=2)
         self.list_combo_quantity_of_interest_to_plot.grid(row=0, column=1, padx=2, pady=2)
+
+
         # Attribution of default value in case the user is satisfied with the proposed one
         self.list_combo_quantity_of_interest_to_plot.bind("<<ComboboxSelected>>",self.select_quantity_of_interest_to_plot)
 
@@ -1145,22 +1501,341 @@ class muDIC_GUI:
         self.component['yy']=(1,1)
        
         text_component_quantity_of_interest_to_plot = 'Component to plot:'
-        component_quantity_of_interest_to_plot = ttk.Label(field_frame, text=text_component_quantity_of_interest_to_plot,anchor='e',width=len(text_component_quantity_of_interest_to_plot)
+        component_quantity_of_interest_to_plot = ttk.Label(field_to_plot, text=text_component_quantity_of_interest_to_plot,anchor='e',width=len(text_component_quantity_of_interest_to_plot)
                              )
-        component_quantity_of_interest_to_plot.grid(row=0, column=2, padx=2, pady=2)
        # list of the supported FEM - For the moment only Q4 are supported
         self.list_component_quantity_of_interest_to_plot = list(self.component.keys())
         #['Disp-x','Disp-y','xx','xy','yy']
         # creation comboBox
-        self.list_combo_component_quantity_of_interest_to_plot=ttk.Combobox(field_frame, values=self.list_component_quantity_of_interest_to_plot,width=len('Disp-x'))
+        self.list_combo_component_quantity_of_interest_to_plot=ttk.Combobox(field_to_plot, values=self.list_component_quantity_of_interest_to_plot,width=len('Disp-x'))
         default_component_quantity_of_interest_to_plot = 0
         self.list_combo_component_quantity_of_interest_to_plot.current(default_component_quantity_of_interest_to_plot)
         #Position de la ComboBox
-        self.list_combo_component_quantity_of_interest_to_plot.grid(row=0, column=3, padx=2, pady=2)
+
+
+
+        component_quantity_of_interest_to_plot.grid(row=1, column=0, padx=2, pady=2)
+        self.list_combo_component_quantity_of_interest_to_plot.grid(row=1, column=1, padx=2, pady=2)
+
+
         # Attribution of default value in case the user is satisfied with the proposed one
         self.list_combo_component_quantity_of_interest_to_plot.bind("<<ComboboxSelected>>",self.select_component_quantity_of_interest_to_plot)
 
+
+
+
+        self.type_of_unit= tk.IntVar(value=1)
+
+        ttk.Radiobutton(field_to_plot,text='Pixels as length unit',variable=self.type_of_unit, value=1).grid(row=2, column=0, padx=2, pady=2)
+        ttk.Radiobutton(field_to_plot,text='Actual length unit',variable=self.type_of_unit, value=2).grid(row=2, column=1, padx=2, pady=2)
+
+        self.units = {}
+        self.units['m']='m'
+        self.units['cm']='cm'
+        self.units['mm']='mm'
+
+        text_units = 'Unit:'
+        text_units = ttk.Label(field_to_plot, text=text_units,anchor='e',width=len(text_units)
+                             )
+        text_units.grid(row=3, column=0, padx=2, pady=2)
+       # list of the supported FEM - For the moment only Q4 are supported
+        self.list_text_units = list(self.units.keys())
+        #['Disp-x','Disp-y','xx','xy','yy']
+        # creation comboBox
+        self.list_combo_text_units=ttk.Combobox(field_to_plot, values=self.list_text_units,width=len('mm    '))
+        default_text_units = 0
+        self.list_combo_text_units.current(default_text_units)
+        #Position de la ComboBox
+        self.list_combo_text_units.grid(row=3, column=1, padx=2, pady=2)
+        # Attribution of default value in case the user is satisfied with the proposed one
+        self.list_combo_text_units.bind("<<ComboboxSelected>>",self.select_text_units)
+
+
+
+        pick_ref_length_object = tk.Button(field_to_plot,text = "Pick ref. on-screen", command = self.select_ref_length)
+        pick_ref_length_object.grid(row=5, column=0, padx=2, pady=2)
+
+
+        label_ref_length = ttk.Label(field_to_plot, text='Ref. length:')
+        label_ref_length.grid(row=4, column=0, padx=2, pady=2)
+
+        self.value_ref_length = ttk.Entry(field_to_plot,width=5)
+        self.value_ref_length.insert(0, 0.15)
+        self.value_ref_length.grid(row=4, column=1, padx=2, pady=2)
+
+        label_scale_DIC = ttk.Label(field_to_plot, text='Scale value:')
+
+        label_scale_DIC.grid(row=6, column=0, padx=2, pady=2)
+        self.value_scale_DIC = ttk.Label(field_to_plot, text='No scale yet',foreground='blue')
+
+        self.value_scale_DIC.grid(row=6, column=1, padx=2, pady=2)
+
+
+
+
+
+
+
+################################################
+        # ttk.Radiobutton(frame_to_plot,text='All frames',variable=self.frames_to_be_plotted, value=1).grid(row=0, column=6, padx=2, pady=2)
+        # ttk.Radiobutton(frame_to_plot,text='Range of frames',variable=self.frames_to_be_plotted, value=2).grid(row=1, column=6, padx=2, pady=2)
+
+
+
+        self.frames_to_be_plotted = tk.IntVar(value=1)
+
+
+        ttk.Radiobutton(frame_to_plot,text='All frames',variable=self.frames_to_be_plotted, value=1).grid(row=0, column=0, padx=2, pady=2)
+        ttk.Radiobutton(frame_to_plot,text='Range of frames',variable=self.frames_to_be_plotted, value=2).grid(row=1, column=0, padx=2, pady=2)
+        ttk.Radiobutton(frame_to_plot,text='Individual frame',variable=self.frames_to_be_plotted, value=3).grid(row=4, column=0, padx=2, pady=2)
+
+
+        # button_one_frame = ttk.Radiobutton(field_frame,'Individual frame')
+        # button_set_of_frames = ttk.Radiobutton(field_frame,'Range of frames')
+        # button_view_all_frames = ttk.Radiobutton(field_frame,'All frames')
+
+        first_frame_to_plot = 'First frame # to plot:'
+        first_frame_to_plot = ttk.Label(frame_to_plot, text=first_frame_to_plot,anchor='e',width=len('Frame # to plot::')
+                            #  , width=len(text_FEM_type)
+                             )
+        first_frame_to_plot.grid(row=2, column=0, padx=2, pady=2)
+        if self.DIC_settings is not None:
+            spinbox_first_frame_to_view = ttk.Spinbox(frame_to_plot, from_=1, to=int(np.int64(self.FEM_nb_stack_images.get())),width=6)
+        else:
+            spinbox_first_frame_to_view = ttk.Spinbox(frame_to_plot, from_=1, to=2,width=6)
+        spinbox_first_frame_to_view.grid(row=2, column=1)
+
+
+
+        last_frame_to_plot = 'Last frame # to plot:'
+        last_frame_to_plot = ttk.Label(frame_to_plot, text=last_frame_to_plot,anchor='e',width=len('Frame # to plot::')
+                            #  , width=len(text_FEM_type)
+                             )
+        last_frame_to_plot.grid(row=3, column=0, padx=2, pady=2)
+        if self.DIC_settings is not None:
+            spinbox_last_frame_to_view = ttk.Spinbox(frame_to_plot, from_=1, to=int(np.int64(self.FEM_nb_stack_images.get())),width=6)
+        else:
+            spinbox_last_frame_to_view = ttk.Spinbox(frame_to_plot, from_=1, to=2,width=6)
+        spinbox_last_frame_to_view.grid(row=3, column=1)
+
+
+
+        frame_number_to_plot = 'Frame # to plot:'
+        frame_number_to_plot = ttk.Label(frame_to_plot, text=frame_number_to_plot,anchor='e',width=len('Frame # to plot::')
+                            #  , width=len(text_FEM_type)
+                             )
+        frame_number_to_plot.grid(row=5, column=0, padx=2, pady=2)
+        
+        if self.DIC_settings is not None:
+            spinbox_frame_to_view = ttk.Spinbox(frame_to_plot, from_=1, to=int(np.int64(self.FEM_nb_stack_images.get())),width=6)
+        else:
+            spinbox_frame_to_view = ttk.Spinbox(frame_to_plot, from_=1, to=2,width=6)
+        spinbox_frame_to_view.grid(row=5, column=1)
+
+        # Creating a dict with the correspondance between the keywords of the fields that 
+        # are implemented in terms immediatly meanful for the user
+        row_pos_custom = 3
+        col_pos_custom = 0
+        self.range_view = tk.IntVar(value=1)
+        ttk.Radiobutton(range_to_plot,text='Static range of min-max values',variable=self.range_view, value=1).grid(row=row_pos_custom-2, column=col_pos_custom, padx=2, pady=2)
+        ttk.Radiobutton(range_to_plot,text='Custom range of min-max values',variable=self.range_view, value=3).grid(row=row_pos_custom, column=col_pos_custom, padx=2, pady=2)
+        ttk.Radiobutton(range_to_plot,text='Dynamic range of min-max values',variable=self.range_view, value=2).grid(row=row_pos_custom-1, column=col_pos_custom, padx=2, pady=2)
+        
+        range_min_value = ttk.Label(range_to_plot, text='Custom min:',anchor='center',width=len('Custom min:   ')
+                            #  , width=len(text_FEM_type)
+                             )
+        col_pos_min = col_pos_custom+1
+        col_pos_max = col_pos_custom+2
+        range_min_value.grid(row=row_pos_custom+1, column=col_pos_min-1, padx=4, pady=2)
+        # range_min_value.place(in_=range_to_plot,x=5,y=100)
+        range_max_value = ttk.Label(range_to_plot, text='Custom max:',anchor='center',width=len('Custom max:   ')
+                            #  , width=len(text_FEM_type)
+                             )
+
+        range_max_value.grid(row=row_pos_custom+1, column=col_pos_max-1, padx=4, pady=2)
+        #range_max_value.place(in_=range_to_plot,x=200,y=100)
+        
+        
+        
+        if self.DIC_results is not None:
+            scale_min_value = tk.Scale(range_to_plot,from_=self.min_value_quantity_of_interest,to=self.max_value_quantity_of_interest,
+                                        tickinterval=1000,
+                                        orient='horizontal',
+                                        sliderlength=len('Custom max:   '),
+                                        )
+            # ttk.Spinbox(frame_to_plot, from_=0, to=self.min_value_quantity_of_interest,width=6)
+            scale_max_value = tk.Scale(range_to_plot, from_=self.min_value_quantity_of_interest, to=self.max_value_quantity_of_interest,
+                                        tickinterval=1000,
+                                        orient='horizontal',
+                                        sliderlength=len('Custom max:   '),
+                                        )
+
+        else:
+            scale_min_value = tk.Scale(range_to_plot,from_=-10.,to=0.,
+                                        tickinterval=1000,
+                                        orient='horizontal',
+                                        sliderlength=len('Custom min:   '),
+                                        )
+
+            # ttk.Spinbox(frame_to_plot, from_=0, to=self.min_value_quantity_of_interest,width=6)
+            scale_max_value = tk.Scale(range_to_plot, from_=-10., to=0.,
+                                        tickinterval=1000,
+                                        orient='horizontal',
+                                        sliderlength=len('Custom max:   '),
+                                        )
+        # scale_min_value.place(in_=range_to_plot,x=5+len('Min   ')+5,y=100)
+        scale_min_value.grid(row=row_pos_custom+2, column=col_pos_min-1, padx=4, pady=2)
+        scale_max_value.grid(row=row_pos_custom+2, column=col_pos_max-1, padx=4, pady=2)
+
+
+        myFont = font.Font(weight="bold")
+        visualize_field = tk.Button(range_to_plot,text = "Plot fringe", bg='Blue', fg='White', command = self.plot_fringe)
+        # "Run "+u"\N{GREEK SMALL LETTER MU}"+"DIC"
+        # Define font
+        visualize_field['font'] = myFont
+        visualize_field.grid(row=row_pos_custom+3,column=col_pos_max-1,padx=2,pady=2)
+
+        self.view_postpro_local_and_fields = ttk.LabelFrame(tab3, text='Post-processing viewer')
+        self.view_postpro_local_and_fields.grid(row=1, column=0, sticky='nswe')
+        # self.view_postpro_local_and_fields.pack(expand=0, fill='x', padx=2, pady=2)
+
+
+
+
+
+##############################################
+        # Canvas pour afficher l'aperçu
+        self.canvas_view_postpro = tk.Canvas(self.view_postpro_local_and_fields)
+#        self.canvas_FOV_ROI.pack(expand=1, fill='both')
+        self.canvas_view_postpro.pack()
+
+
+
+
+##########################################################################################################
+####################### Tab for local post-processing - plotting disp, vel and acc along time ############
+####################### For dynamic test => add SDOF calc, FFT and CCWT and EMA and OMA ##################
+##########################################################################################################
+
+        # local_measurement_frame.pack(expand=1, fill='x', padx=2, pady=2)
+        self.view_postpro_local = ttk.LabelFrame(tab3bis, text='Post-processing viewer')
+        self.view_postpro_local.grid(row=0, column=0, sticky='nswe')
+        # self.view_postpro_local_and_fields.pack(expand=0, fill='x', padx=2, pady=2)
+
+        # Canvas pour afficher l'aperçu
+        self.canvas_view_postpro_local = tk.Canvas(self.view_postpro_local)
+#        self.canvas_FOV_ROI.pack(expand=1, fill='both')
+        self.canvas_view_postpro_local.pack()
+
+
+
+        local_measurement_frame = ttk.LabelFrame(tab3bis, text='Local measurements')
+        local_measurement_frame.grid(row=1, column=0, sticky='nswe')
+
+
+        local_measurement_frame.grid_columnconfigure(1, weight=1)
+        local_measurement_frame.grid_rowconfigure(0, weight=1)
+        # field_frame.grid_columnconfigure(0, weight=1)
+        # field_frame.grid_columnconfigure(1, weight=1)
+        # field_frame.grid_rowconfigure(0, weight=1)
+        # field_frame.grid_rowconfigure(1, weight=1)
+
+        # self.FRAME_for_icone=ttk.Frame(field_frame, width=10, height =10)
+        # self.FRAME_for_icone.place(in_=field_frame, relx=1.0, x=-150, rely=0, y=5)
+
+        # LABEL=ttk.Label(self.FRAME_for_icone, text=self.text_icone,font=('Helvetica', 18,'bold','italic'),foreground='blue').pack()
+
+        # pos_vert_frame = 1
+
+        quasistatic_analysis = ttk.LabelFrame(local_measurement_frame, text='Quasi-static analysis')
+        # field_to_plot.pack(anchor='n')
+        # field_to_plot.place(in_=field_frame,
+        #                     x=5,
+        #                     # y=pos_vert_frame
+        #                     )
+        pick_a_point_button_text = "Pick location"
+        pick_a_point_button = tk.Button(quasistatic_analysis, text=pick_a_point_button_text, command=self.FEM_mesh_prop_gen
+                                    #    , width=len(text_chose_path_button)
+                                       )
+        pick_a_point_button.grid(row=0, column=0,  padx=2, pady=2)
+
+
+        plot_curve_text = "Plot curve"
+        plot_curve_button = tk.Button(quasistatic_analysis, text=plot_curve_text, command=self.plot_fringe
+                                    #    , width=len(text_chose_path_button)
+                                       )
+        plot_curve_button.grid(row=1, column=0,  padx=2, pady=2)
+
+
+
+        time_history_analysis = ttk.LabelFrame(local_measurement_frame, text='Time-history analysis')
+        # frame_to_plot.pack(anchor='n')
+        # frame_to_plot.place(in_=field_frame,
+        #                     x=5,
+        #                     y=140
+        #                     # y=140-pos_vert_frame
+        #                     )
+
+        plot_time_hist_text = "Plot time-history"
+        plot_time_hist_button = tk.Button(time_history_analysis, text=plot_time_hist_text, command=self.plot_fringe
+                                    #    , width=len(text_chose_path_button)
+                                       )
+        plot_time_hist_button.grid(row=0, column=0,  padx=2, pady=2)
+
+
+
+
+        frequency_domain_analysis = ttk.LabelFrame(local_measurement_frame, text='Frequency domain analysis')
+        # range_to_plot.pack(anchor='ne')
+        # range_to_plot.place(in_=field_frame,
+        #                     # y=pos_vert_frame,
+        #                     x=610
+        #                     )
+        plot_SDOF_text = "Plot SDOF"
+        plot_SDOF_button = tk.Button(frequency_domain_analysis, text=plot_SDOF_text, command=self.plot_fringe
+                                    #    , width=len(text_chose_path_button)
+                                       )
+        plot_SDOF_button.grid(row=0, column=0,  padx=2, pady=2)
+
+
+        time_frequency_domain_analysis = ttk.LabelFrame(local_measurement_frame, text='Time-frequency domain analysis')
+        # range_to_plot.pack(anchor='ne')
+        # range_to_plot.place(in_=field_frame,
+        #                     # y=pos_vert_frame,
+        #                     x=610
+        #                     )
+
+        plot_CCWT_text = "Plot CCWT"
+        plot_CCWT_button = tk.Button(time_frequency_domain_analysis, text=plot_CCWT_text, command=self.plot_fringe
+                                    #    , width=len(text_chose_path_button)
+                                       )
+        plot_CCWT_button.grid(row=0, column=0,  padx=2, pady=2)
+
+
+        quasistatic_analysis.grid(row=0, column=0, sticky="nswe")
+        time_history_analysis.grid(row=0, column=1, sticky="nswe")
+        frequency_domain_analysis.grid(row=0, column=2, sticky="nswe")
+        time_frequency_domain_analysis.grid(row=0, column=3, sticky="nswe")
+
+
+
+
+
+
+
+
+
+
+
+
+
+#############################################################################################
+
+
         """
+        Ajouter une mesure de l'incertitude de mesure avec écart type sur une zone non sollicitée et aussi hors excitation
+        Ajouter une sélection à l'écran pour calculer le paramètre d'échelle pixel - dimension physique
+        Ajouter dans tous les graphiques la toolbar de matplotlib
         Ajouter un bouton pour lancer l'extraction des quantités d'intérêt globale
         Ajouter un sélecteur pour choisir si on veut extraire pour tous les instants ou pour un seul instant
         Ajouter un bouton pour calculer les quantités d'intérêt choisies
@@ -1168,6 +1843,7 @@ class muDIC_GUI:
         Pour la visualisation sur tous les instants choisir dynamic range ou max amplitude ou bien user scale
         Mettre dans ce cas une cellule pour choisir l'instant
         Mettre un bouton pour chosir si on veut superposer l'image de départ avec les champs calculés par DIC
+        Coder un calcul de résidu entre les champs de niveaux de gris par pixel reconstruits par DIC et les champs de niveau de gris de l'image d'origine 
         """
 #####################################################################################
         #######################################################################
@@ -1177,14 +1853,25 @@ class muDIC_GUI:
 
 
         code_aster_frame = ttk.LabelFrame(tab4, text='Preparation of Code_Aster test simulation')
-        code_aster_frame.pack(expand=1, fill='both', padx=2, pady=2)
+        code_aster_frame.pack(expand=1, fill='x', padx=2, pady=2)
 
-        self.FRAME_for_icone=ttk.Frame(code_aster_frame, width=10, height =10)
-        self.FRAME_for_icone.place(in_=code_aster_frame, relx=1.0, x=-150, rely=0, y=5)
+        # self.FRAME_for_icone=ttk.Frame(code_aster_frame, width=10, height =10)
+        # self.FRAME_for_icone.place(in_=code_aster_frame, relx=1.0, x=-150, rely=0, y=5)
 
-        LABEL=ttk.Label(self.FRAME_for_icone, text=self.text_icone,font=('Helvetica', 18,'bold','italic'),foreground='blue').pack()
+        # LABEL=ttk.Label(self.FRAME_for_icone, text=self.text_icone,font=('Helvetica', 18,'bold','italic'),foreground='blue').pack()
 
-
+        """
+        1- Avoir un générateur de scipt python pour mesh dans salome
+        2- Avoir un système qui permet de choisir les lieux où on construira l'interpolation
+        3- Mettre option sur le degré de la base d'interpolation
+        4- Mettre option pour mise en données .comm:
+            4-1- Modèle de comportement
+            4-2- Imposer le type d'éléments en signalant
+            4-3- Si non linéaire imposer le modèle de 'pilotage'
+            4-4- Indiquer le type d'armature et leur emplacement et constuire générateur de maillage filaire
+            4-5- Si non linéaire mettre options pour critère de convergence
+            4-6- Si dynamique mettre option pour échantillonnage sortie, pas de temps de calcul
+        """
 
 
 
