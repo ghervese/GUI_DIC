@@ -49,7 +49,7 @@ class muDIC_GUI:
         self.mudicgui_version = 'v 0.1'
         self.DIC_settings = None
         self.DIC_results = None
-
+        # self.fig_setup_sketch = None
 
     plt.rcParams['figure.figsize'] = [0.1, 0.1]
 
@@ -96,7 +96,7 @@ class muDIC_GUI:
         self.preview = mpimg.imread(self.first_image_file)
         plt.clf()
         self.preview_selection = plt.figure(figsize=(15,2))
-
+        
         self.ax = self.preview_selection.subplots()
         self.ax.imshow(self.preview,cmap='binary')
         self.ax.grid(color='black',ls='solid')
@@ -239,9 +239,12 @@ class muDIC_GUI:
         else:
             self.temp_store_internals = False
 
-    def select_menu_no_convergence_options(self,event):
+    def select_menu_no_convergence_options(self):
         self.no_convergence_action =  self.list_combo_no_convergence_options.get()
 
+
+    def select_cover_direction(self,event):
+        self.cover_direction_value = self.cover_direction[self.list_combo_cover_direction.get()]
 
     def select_quantity_of_interest_to_plot(self,event):
         self.quantity_of_interest =  self.fields[self.list_combo_quantity_of_interest_to_plot.get()]
@@ -462,10 +465,187 @@ class muDIC_GUI:
 
     def compute_test_char(self):
         print('Compute test characteristics')
-        horiz_FOV = 2
-        verti_FOV = 2
-        self.H_FOV.configure(text=str(np.int64(horiz_FOV)))
-        self.V_FOV.configure(text=str(np.int64(verti_FOV)))
+        self.H_FOV = np.float64(self.distance_to_target_value.get())*np.float64(self.sensor_size_H_value.get())/np.float64(self.focal_length_value.get())
+        self.V_FOV = np.float64(self.distance_to_target_value.get())*np.float64(self.sensor_size_V_value.get())/np.float64(self.focal_length_value.get())
+        self.H_FOV_value.configure(text=str(round(np.float64(self.H_FOV),3))+' m')
+        self.V_FOV_value.configure(text=str(round(np.float64(self.V_FOV),3))+' m')
+
+        # self.resolution_H_FOV = 1./(np.float64(self.pixel_numer_H_cam_value.get())/self.H_FOV/1000.)
+        self.resolution_FOV = 1./(np.float64(self.pixel_numer_V_cam_value.get())/self.V_FOV/1000.)
+        # print(self.resolution_H_FOV)
+        # print(self.resolution_V_FOV)
+        # self.definition_FOV_value.configure(text=str(round(np.float64(self.H_FOV),3))+' m')
+        self.resolution_FOV_value.configure(text=str(round(1./(np.float64(self.pixel_numer_V_cam_value.get())/self.V_FOV/1000.),3))+' mm/px')
+        self.definition_FOV_value.configure(text=str(round(1./(np.float64(self.pixel_numer_V_cam_value.get())/self.V_FOV/1000.)*np.float64(self.smallest_size_text_value.get()),3)))
+        def_FOV = (np.float64(self.pixel_numer_V_cam_value.get())/self.V_FOV/1000.)
+        self.speckle_diam_value.configure(text=str(round(np.float64(self.nb_pixel_per_spot_value.get())/np.float64(def_FOV),1)))
+        # sens_size =  
+        # self_H_
+        self.angle_of_view_H = round(2*np.arctan(np.float64(self.sensor_size_H_value.get())/2/np.float64(self.focal_length_value.get()))*180/np.pi,1)
+        self.angle_of_view_V = round(2*np.arctan(np.float64(self.sensor_size_V_value.get())/2/np.float64(self.focal_length_value.get()))*180/np.pi,1)
+        #print(self.angle_of_view_H)
+
+        self.angle_of_view_V_value.configure(text=str(self.angle_of_view_V))
+        self.angle_of_view_H_value.configure(text=str(self.angle_of_view_H))
+
+        self.cover_direction_value = self.cover_direction[self.list_combo_cover_direction.get()]
+        self.overlap_length_V = round((np.float64(self.cover_pct_value.get())/100.)*self.V_FOV,2)
+        self.overlap_length_V_value.configure(text=str(self.overlap_length_V))
+        self.overlap_length_H = round((np.float64(self.cover_pct_value.get())/100.)*self.H_FOV,2)
+        self.overlap_length_H_value.configure(text=str(self.overlap_length_H))
+        
+        if self.cover_direction_value == 'Vertical':
+            self.distance_2_cams = round((1.-np.float64(self.cover_pct_value.get())/100.)*self.V_FOV,2)
+            self.distance_2_cams_value.configure(text=str(self.distance_2_cams))
+            #print(self.distance_2_cams)
+            # self.setup_drawing(self.number_of_camera_text_value,self.distance_2_cams_value,self.distance_to_target_value,self.V_FOV_value,self.cover_pct_value,self.overlap_length_V_value)
+            #print(str(self.H_FOV-np.float64((self.cover_pct_value.get()))/100.*self.H_FOV))
+            # self.sketch_characteristics = self.test_ketch_characteristics(number_of_camera_text_value= np.int64(self.number_of_camera_text_value.get()),distance_2_cams_value=self.distance_2_cams,distance_to_target_value=np.float64(self.distance_to_target_value.get()),FOV_value=self.H_FOV,cover_pct_value=np.float64(self.cover_pct_value.get()),overlap_length_value=self.overlap_length_H)
+            self.plot_sketch()
+        elif self.cover_direction_value == 'Horizontal':
+            self.distance_2_cams = round((1.-np.float64(self.cover_pct_value.get())/100.)*self.H_FOV,2)
+            #print(self.distance_2_cams)
+            self.distance_2_cams_value.configure(text=str(self.distance_2_cams))
+            # print(str(self.H_FOV))
+            # print(str(np.float64((self.cover_pct_value.get()))/100.*self.H_FOV))
+            # print(str(np.float64(self.cover_pct_value.get())/100.))
+            # print(str(self.H_FOV-np.float64((1.-np.float64(self.cover_pct_value.get())/100.)*self.H_FOV)))
+            # print(np.float64((self.cover_pct_value.get()))/100.*self.H_FOV-np.float64((1.-np.float64(self.cover_pct_value.get())/100.)*self.H_FOV))
+            #print(str(self.H_FOV-np.float64((self.cover_pct_value.get()))/100.*self.H_FOV))
+            self.plot_sketch()
+
+
+    def plot_sketch(self):
+        """
+        This function generates a plot that figures out the top and side view of the experimental camera(s) setup
+        Args:   number_of_camera = Integer # This figures out if one or two can are used.
+                distance_2_cams_value = float # This figures out the distance between two cameras
+                distance_to_target_value = float # This figures out the distance between the camera lens and the focal plan
+                FOV_value = float # This figures out the field of view of a single camera 
+                cover_pct_value = 10. # Value in % of overlapping of the field of view of the two cameras
+        Returns:
+                sketch_characteristics = Dictionnary with 3 keys overlap, camera_1 and camera_2
+                * overlap key refers to a float that corresponds to the overlapping length of the txo cameras
+                * camera_2 keys refers to a dictionnary with 3 keys:
+                    - cam_pos = Camera position
+                    - FOV_min_pos = the location of the minimum value of the field of view of the considered camera
+                    - FOV_max_pos = the location of the maximum value of the field of view of the considered camera
+        """
+        distance_2_cams_value = self.distance_2_cams
+        distance_to_target_value = np.float64(self.distance_to_target_value.get())
+        if self.cover_direction_value == 'Horizontal':
+            FOV_value = self.H_FOV
+            overlap_length_value = self.overlap_length_H
+        else:
+            FOV_value = self.V_FOV
+            overlap_length_value = self.overlap_length_V
+        self.sketch_characteristics = {'camera_1': {'cam_pos': [0,0],
+                                        'FOV_min_pos':[distance_to_target_value,-FOV_value/2-np.float64(self.cover_pct_value.get())/100*FOV_value/2],
+                                        'FOV_max_pos':[distance_to_target_value,FOV_value/2-np.float64(self.cover_pct_value.get())/100*FOV_value/2]},
+                        'camera_2': {'cam_pos': [0,distance_2_cams_value],
+                        'FOV_min_pos':[distance_to_target_value,-FOV_value/2+distance_2_cams_value+np.float64(self.cover_pct_value.get())/100*FOV_value/2],
+                        'FOV_max_pos':[distance_to_target_value,FOV_value/2+distance_2_cams_value+np.float64(self.cover_pct_value.get())/100*FOV_value/2]},
+                        'overlap': np.float64(self.cover_pct_value.get())*FOV_value/100,
+                        'cam_nbr':np.int64(self.number_of_camera_text_value.get())}
+
+        # self.calc_test_ketch_characteristics()
+        #print(self.sketch_characteristics)
+        #number_of_camera_text_value = np.float64(self.number_of_camera_text_value.get())
+
+        #print(self.sketch_characteristics['cam_nbr'])
+        if self.sketch_characteristics['cam_nbr']==1:
+            ax_sketch  = plt.figure()
+            # self.ax_sketch = plt.subplots(111)
+            # self.ax_sketch.get_autoscale_on()
+            fig_sketch = plt.figure(figsize=(21,72))
+            ax_sketch = fig_sketch.add_subplot(111)
+            # Plot the dimension between the two cams
+            ax_sketch.annotate(text='', xy=(self.sketch_characteristics['camera_1']['cam_pos'][0],
+                                    self.sketch_characteristics['camera_1']['cam_pos'][1]),
+                        xytext=(
+                            self.sketch_characteristics['camera_2']['cam_pos'][0],
+                                self.sketch_characteristics['camera_2']['cam_pos'][1]),
+                            arrowprops=dict(arrowstyle='<->',
+                                            shrinkA=0, shrinkB=0))
+            middle_segment_dist_2_cams = (self.sketch_characteristics['camera_2']['cam_pos'][1]-self.sketch_characteristics['camera_1']['cam_pos'][1])/2
+            ax_sketch.text(x=self.sketch_characteristics['camera_1']['cam_pos'][0],y=middle_segment_dist_2_cams,s=str(distance_2_cams_value)+' m',rotation=90,rotation_mode = 'anchor',transform_rotates_text=True)
+            # Plot the dimension between the cams and the focal plan
+            ax_sketch.annotate(text='', xy=(self.sketch_characteristics['camera_2']['cam_pos'][0],
+                                    self.sketch_characteristics['camera_2']['cam_pos'][1]/2),
+                        xytext=(
+                            self.sketch_characteristics['camera_2']['cam_pos'][0]+distance_to_target_value,
+                                self.sketch_characteristics['camera_2']['cam_pos'][1]/2),
+                            arrowprops=dict(arrowstyle='<->', shrinkA=0, shrinkB=0))
+            middle_segment_dist_to_target = (distance_to_target_value/2)
+            ax_sketch.text(x=middle_segment_dist_to_target,y=(self.sketch_characteristics['camera_2']['cam_pos'][1]-self.sketch_characteristics['camera_1']['cam_pos'][1])/2,s=str(distance_to_target_value)+' m',rotation=0,rotation_mode = 'anchor',transform_rotates_text=True)
+            
+            # Plot the overlapping dimension
+            ax_sketch.annotate(text='', xy=(self.sketch_characteristics['camera_1']['FOV_max_pos'][0],
+                                    self.sketch_characteristics['camera_1']['FOV_max_pos'][1]),
+                        xytext=(
+                            self.sketch_characteristics['camera_2']['FOV_min_pos'][0],
+                                self.sketch_characteristics['camera_2']['FOV_min_pos'][1]),
+                            arrowprops=dict(arrowstyle='<->', shrinkA=0, shrinkB=0))
+            # Plot the FOV length
+            ax_sketch.annotate('',xy=(self.sketch_characteristics['camera_1']['FOV_max_pos'][0],
+                                self.sketch_characteristics['camera_1']['FOV_max_pos'][1]),
+                        xytext=(self.sketch_characteristics['camera_1']['FOV_min_pos'][0],
+                                self.sketch_characteristics['camera_1']['FOV_min_pos'][1]),
+                            arrowprops=dict(arrowstyle='<->', shrinkA=0, shrinkB=0))
+            middle_segment_FOV = (self.sketch_characteristics['camera_1']['FOV_min_pos'][1])/2
+            ax_sketch.text(x=distance_to_target_value,y=middle_segment_FOV,s=str(round(FOV_value,2))+' m',rotation=90,rotation_mode = 'anchor',transform_rotates_text=True)
+
+            x_values_seg_cam1_FOV_min = [self.sketch_characteristics['camera_1']['cam_pos'][0],self.sketch_characteristics['camera_1']['FOV_min_pos'][0]]
+            y_values_seg_cam1_FOV_min = [self.sketch_characteristics['camera_1']['cam_pos'][1],self.sketch_characteristics['camera_1']['FOV_min_pos'][1]]
+
+            x_values_seg_cam1_FOV_max = [self.sketch_characteristics['camera_1']['cam_pos'][0],self.sketch_characteristics['camera_1']['FOV_max_pos'][0]]
+            y_values_seg_cam1_FOV_max = [self.sketch_characteristics['camera_1']['cam_pos'][1],self.sketch_characteristics['camera_1']['FOV_max_pos'][1]]
+
+
+            x_values_seg_cam2_FOV_min = [self.sketch_characteristics['camera_2']['cam_pos'][0],self.sketch_characteristics['camera_2']['FOV_min_pos'][0]]
+            y_values_seg_cam2_FOV_min = [self.sketch_characteristics['camera_2']['cam_pos'][1],self.sketch_characteristics['camera_2']['FOV_min_pos'][1]]
+
+            x_values_seg_cam2_FOV_max = [self.sketch_characteristics['camera_2']['cam_pos'][0],self.sketch_characteristics['camera_2']['FOV_max_pos'][0]]
+            y_values_seg_cam2_FOV_max = [self.sketch_characteristics['camera_2']['cam_pos'][1],self.sketch_characteristics['camera_2']['FOV_max_pos'][1]]
+
+
+            ax_sketch.plot(x_values_seg_cam1_FOV_min,y_values_seg_cam1_FOV_min,'bo',linestyle='--')
+            ax_sketch.plot(x_values_seg_cam1_FOV_max,y_values_seg_cam1_FOV_max,'bo',linestyle='--')
+            ax_sketch.plot(x_values_seg_cam2_FOV_min,y_values_seg_cam2_FOV_min,'bo',linestyle='--')
+            ax_sketch.plot(x_values_seg_cam2_FOV_max,y_values_seg_cam2_FOV_max,'bo',linestyle='--')
+
+            middle_segment_overlap= self.sketch_characteristics['camera_1']['FOV_max_pos'][1]
+            ax_sketch.text(x=distance_to_target_value,y=middle_segment_overlap,s='overlap '+str(overlap_length_value)+' m',rotation=0,rotation_mode = 'anchor',transform_rotates_text=True)
+
+
+            ax_sketch.set_xlim(-0.25, distance_to_target_value+0.25)
+            ax_sketch.set_ylim(self.sketch_characteristics['camera_1']['FOV_min_pos'][1]-0.25, self.sketch_characteristics['camera_2']['FOV_max_pos'][1]+0.25)
+            ax_sketch.text(x=self.sketch_characteristics['camera_1']['cam_pos'][0]-0.25,y=self.sketch_characteristics['camera_1']['cam_pos'][1]-0.25,s='Camera #1')
+
+            ax_sketch.text(x=self.sketch_characteristics['camera_2']['cam_pos'][0]-0.25,y=self.sketch_characteristics['camera_2']['cam_pos'][1]+0.25,s='Camera #2')
+            
+            self.canvas_fig_setup_sketch = tk.Canvas(self.experimental_sketch)
+    #        self.canvas_FOV_ROI.pack(expand=1, fill='both')
+            self.canvas_fig_setup_sketch.pack(expand=1,fill='both')
+            self.Figurecanvas_fig_setup_sketch = FigureCanvasTkAgg(figure=fig_sketch, master=self.canvas_fig_setup_sketch)
+            self.Figurecanvas_fig_setup_sketch.draw()
+            self.Figurecanvas_fig_setup_sketch.get_tk_widget().pack()
+            # toolbar = NavigationToolbar2Tk(self.Figurecanvas_fig_setup_sketch,)
+            # toolbar.update().pack(fill='both',expand=True)
+            # self.Figurecanvas_fig_setup_sketch.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+            
+            
+            # self.fig_photo_first = FigureCanvasTkAgg(self.preview_selection, master=self.canvas_FOV_ROI)
+            # self.fig_photo_first.draw()
+            # self.fig_photo_first.get_tk_widget().pack()
+            # toolbar = NavigationToolbar2Tk(self.fig_photo_first, self.canvas_FOV_ROI)
+            # toolbar.update()
+            # self.fig_photo_first.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+
+
+
+
+
 
     def create_gui(self):
         """
@@ -729,14 +909,14 @@ class muDIC_GUI:
         setup_properties = ttk.LabelFrame(tab0, text='Setup properties')
         # preprocessing_frame.pack(expand=1,fill='x',padx=2, pady=2)
         
-        experimental_sketch = ttk.LabelFrame(tab0, text='Sketch of exprimental setup')
+        self.experimental_sketch = ttk.LabelFrame(tab0, text='Sketch of exprimental setup')
         # self.preview_first_image_frame.pack(expand=0, fill='x', padx=2, pady=2)
 
         experimental_capabilities = ttk.LabelFrame(tab0, text='Experimental capabilitie and speckle recommandation',height=100)
         # ROI_frame.pack(expand=1, fill='x', padx=2, pady=2)
 
         setup_properties.grid(row=0, column=0, sticky="nswe")
-        experimental_sketch.grid(row=1, column=0, sticky="nswe")
+        self.experimental_sketch.grid(row=1, column=0, sticky="nswe")
         experimental_capabilities.grid(row=2, column=0, sticky="nswe")
 
 ############################################################################
@@ -756,7 +936,7 @@ class muDIC_GUI:
                                         width=len(sensor_size_H_text))
         sensor_size_H.grid(row=0, column=2, padx=2, pady=2)
         self.sensor_size_H_value = ttk.Entry(setup_properties,width=5)
-        self.sensor_size_H_value.insert(0, 11)
+        self.sensor_size_H_value.insert(0, 16.35)
         self.sensor_size_H_value.grid(row=0, column=3, padx=2, pady=2)
 
         sensor_size_V_text = '(V)[mm]:'
@@ -765,7 +945,7 @@ class muDIC_GUI:
                                         width=len(sensor_size_V_text))
         sensor_size_V.grid(row=0, column=4, padx=2, pady=2)
         self.sensor_size_V_value = ttk.Entry(setup_properties,width=5)
-        self.sensor_size_V_value.insert(0, 8)
+        self.sensor_size_V_value.insert(0, 12.1)
         self.sensor_size_V_value.grid(row=0, column=5, padx=2, pady=2)
 
         self.pixel_input= tk.IntVar(value=1)
@@ -788,7 +968,7 @@ class muDIC_GUI:
                                         width=len(pixel_numer_H_cam_text))
         pixel_numer_H_cam.grid(row=2, column=2, padx=2, pady=2)
         self.pixel_numer_H_cam_value = ttk.Entry(setup_properties,width=5)
-        self.pixel_numer_H_cam_value.insert(0, 2900)
+        self.pixel_numer_H_cam_value.insert(0, 2336)
         self.pixel_numer_H_cam_value.grid(row=2, column=3, padx=2, pady=2)
 
         pixel_numer_V_cam_text = '(V) [mm]:'
@@ -797,7 +977,7 @@ class muDIC_GUI:
                                         width=len(pixel_numer_V_cam_text))
         pixel_numer_V_cam.grid(row=2, column=4, padx=2, pady=2)
         self.pixel_numer_V_cam_value = ttk.Entry(setup_properties,width=5)
-        self.pixel_numer_V_cam_value.insert(0, 2100)
+        self.pixel_numer_V_cam_value.insert(0, 1728)
         self.pixel_numer_V_cam_value.grid(row=2, column=5, padx=2, pady=2)
 
 
@@ -808,7 +988,7 @@ class muDIC_GUI:
                                         width=len(distance_to_target_text))
         distance_to_target.grid(row=0, column=6, padx=2, pady=2)
         self.distance_to_target_value = ttk.Entry(setup_properties,width=5)
-        self.distance_to_target_value.insert(0, 2)
+        self.distance_to_target_value.insert(0, 2.5)
         self.distance_to_target_value.grid(row=0, column=7, padx=2, pady=2)
 
         self.camera_type_dict = {}
@@ -860,7 +1040,7 @@ class muDIC_GUI:
         self.number_of_camera_text_value.grid(row=0, column=9, padx=2, pady=2)
 
         # Text area to define the prefix of the images
-        cover_pct_text = 'Cover %age:'
+        cover_pct_text = 'Overlap %age:'
         cover_pct = ttk.Label(setup_properties, text=cover_pct_text,anchor='e',
                                 #   width=len(text_object_label2)
                                         width=len(cover_pct_text))
@@ -873,7 +1053,7 @@ class muDIC_GUI:
         self.cover_direction['Vert.']='Vertical'
         self.cover_direction['Hor.']='Horizontal'
 
-        cover_direction_text = 'Cover direction:'
+        cover_direction_text = 'Overlap direction:'
         cover_direction = ttk.Label(setup_properties, text=cover_direction_text,anchor='e',
                                 #   width=len(text_object_label2)
                                         width=len(cover_direction_text))
@@ -888,39 +1068,81 @@ class muDIC_GUI:
         #Position de la ComboBox
 
         # Attribution of default value in case the user is satisfied with the proposed one
-        self.list_combo_cover_direction.bind("<<ComboboxSelected>>",self.select_quantity_of_interest_to_plot)
+        self.list_combo_cover_direction.bind("<<ComboboxSelected>>",self.select_cover_direction)
 
         self.list_combo_cover_direction.grid(row=2, column=9, padx=2, pady=2)
+
+
+
+
+
+        distance_2_cams_text = '2 cameras dist. [m]:'
+        distance_2_cams = ttk.Label(setup_properties, text=distance_2_cams_text,anchor='e',
+                                #   width=len(text_object_label2)
+                                        width=len(distance_2_cams_text))
+        distance_2_cams.grid(row=2, column=10, padx=2, pady=2)
+
+        self.distance_2_cams_value = ttk.Label(setup_properties, text='No value yet',foreground='blue')
+        self.distance_2_cams_value.grid(row=2, column=11, padx=2, pady=2)        
+
+
+
+
+        speckle_diam_text = 'Speckle size [mm]:'
+        speckle_diam = ttk.Label(setup_properties, text=speckle_diam_text,anchor='e',
+                                #   width=len(text_object_label2)
+                                        width=len(speckle_diam_text))
+        speckle_diam.grid(row=1, column=10, padx=2, pady=2)
+
+        self.speckle_diam_value = ttk.Label(setup_properties, text='No value yet',foreground='blue')
+        self.speckle_diam_value.grid(row=1, column=11, padx=2, pady=2)        
+
+
+
+
+
+
+        nb_pixel_per_spot_text = 'Number of px per spot:'
+        nb_pixel_per_spot = ttk.Label(setup_properties, text=nb_pixel_per_spot_text,anchor='e',
+                                #   width=len(text_object_label2)
+                                        width=len(nb_pixel_per_spot_text))
+        nb_pixel_per_spot.grid(row=0, column=10, padx=2, pady=2)
+        self.nb_pixel_per_spot_value = ttk.Entry(setup_properties,width=5)
+        self.nb_pixel_per_spot_value.insert(0, 5)
+        self.nb_pixel_per_spot_value.grid(row=0, column=11, padx=2, pady=2)
+
+
+
 ################################################################################################
         ######################## Frame content : test sketch ############################
 ################################################################################################
 
-        experimental_sketch.grid_columnconfigure(1, weight=1)
-        experimental_sketch.grid_rowconfigure(0, weight=1)
+        #self.experimental_sketch.grid_columnconfigure(1, weight=1)
+#        self.experimental_sketch.grid_rowconfigure(0, weight=0)
 
-        top_view_sketch = ttk.LabelFrame(experimental_sketch, text='Top view')
+        #self.view_sketch = ttk.LabelFrame(self.experimental_sketch, text='Sketch of experimental setup')
 
         # field_to_plot.pack(anchor='n')
         # field_to_plot.place(in_=field_frame,
         #                     x=5,
         #                     # y=pos_vert_frame
         #                     )
-        self.canvas_top_view = tk.Canvas(top_view_sketch)
+        self.canvas_fig_setup_sketch = tk.Canvas(self.experimental_sketch)
 #        self.canvas_FOV_ROI.pack(expand=1, fill='both')
-        self.canvas_top_view.pack()
-        side_view_sketch = ttk.LabelFrame(experimental_sketch, text='Side view')
-        # frame_to_plot.pack(anchor='n')
-        # frame_to_plot.place(in_=field_frame,
-        #                     x=5,
-        #                     y=140
-        #                     # y=140-pos_vert_frame
-        #                     )
-        self.canvas_side_view = tk.Canvas(side_view_sketch)
-#        self.canvas_FOV_ROI.pack(expand=1, fill='both')
-        self.canvas_side_view.pack()
-
-        top_view_sketch.grid(row=0, column=0, sticky="nsew")
-        side_view_sketch.grid(row=0, column=1, sticky="nsew")
+        self.canvas_fig_setup_sketch.pack(expand=1,fill='y')
+#         side_view_sketch = ttk.LabelFrame(experimental_sketch, text='Side view')
+#         # frame_to_plot.pack(anchor='n')
+#         # frame_to_plot.place(in_=field_frame,
+#         #                     x=5,
+#         #                     y=140
+#         #                     # y=140-pos_vert_frame
+#         #                     )
+#         self.canvas_side_view = tk.Canvas(side_view_sketch)
+# #        self.canvas_FOV_ROI.pack(expand=1, fill='both')
+#         self.canvas_side_view.pack()
+        # self.view_sketch.pack()
+        # self.view_sketch.grid(row=0, column=0, sticky="nsew")
+        # side_view_sketch.grid(row=0, column=1, sticky="nsew")
 
 
 ################################################################################################
@@ -937,50 +1159,42 @@ class muDIC_GUI:
         # calculate_test_recom_button.grid(row=0, column=0, padx=2, pady=2)
 
 
-        nb_pixel_per_spot_text = 'Number of px per spot:'
-        nb_pixel_per_spot = ttk.Label(experimental_capabilities, text=nb_pixel_per_spot_text,anchor='e',
-                                #   width=len(text_object_label2)
-                                        width=len(nb_pixel_per_spot_text))
-        nb_pixel_per_spot.grid(row=1, column=0, padx=2, pady=2)
-        self.nb_pixel_per_spot_value = ttk.Entry(experimental_capabilities,width=5)
-        self.nb_pixel_per_spot_value.insert(0, 5)
-        self.nb_pixel_per_spot_value.grid(row=1, column=1, padx=2, pady=2)
 
 
 
 
-        observation_H_FOV_text = 'FOV size [m] (H):'
+        observation_H_FOV_text = 'FOV size (H):'
         observation_H_FOV = ttk.Label(experimental_capabilities, text=observation_H_FOV_text,anchor='e',
                                 #   width=len(text_object_label2)
                                         width=len(observation_H_FOV_text))
-        observation_H_FOV.grid(row=0, column=2, padx=2, pady=2)
-        self.H_FOV = ttk.Label(experimental_capabilities, text='No value yet',foreground='blue')
-        self.H_FOV.grid(row=0, column=3, padx=2, pady=2)
+        observation_H_FOV.grid(row=0, column=1, padx=2, pady=2)
+        self.H_FOV_value = ttk.Label(experimental_capabilities, text='No value yet',foreground='blue')
+        self.H_FOV_value.grid(row=0, column=2, padx=2, pady=2)
         observation_V_FOV_text = '(V):'
         observation_V_FOV = ttk.Label(experimental_capabilities, text=observation_V_FOV_text,anchor='e',
                                 #   width=len(text_object_label2)
                                         width=len(observation_V_FOV_text))
-        observation_V_FOV.grid(row=0, column=4, padx=2, pady=2)
+        observation_V_FOV.grid(row=0, column=3, padx=2, pady=2)
 
-        self.V_FOV = ttk.Label(experimental_capabilities, text='No value yet',foreground='blue')
-        self.V_FOV.grid(row=0, column=5, padx=2, pady=2)
+        self.V_FOV_value = ttk.Label(experimental_capabilities, text='No value yet',foreground='blue')
+        self.V_FOV_value.grid(row=0, column=4, padx=2, pady=2)
 ############################################################################
         definition_FOV_text = 'Smallest sample def. [px]:'
         definition_FOV = ttk.Label(experimental_capabilities, text=definition_FOV_text,anchor='e',
                                 #   width=len(text_object_label2)
                                         width=len(definition_FOV_text))
-        definition_FOV.grid(row=0, column=6, padx=2, pady=2)
-        self.definition_FOV = ttk.Label(experimental_capabilities, text='No value yet',foreground='blue')
-        self.definition_FOV.grid(row=0, column=7, padx=2, pady=2)
+        definition_FOV.grid(row=1, column=2, padx=2, pady=2)
+        self.definition_FOV_value = ttk.Label(experimental_capabilities, text='No value yet',foreground='blue')
+        self.definition_FOV_value.grid(row=1, column=3, padx=2, pady=2)
 
 ###################################################################################################
-        resolution_FOV_text = 'FOV res. [mm/px]:'
+        resolution_FOV_text = 'FOV res.:'
         resolution_FOV = ttk.Label(experimental_capabilities, text=resolution_FOV_text,anchor='e',
                                 #   width=len(text_object_label2)
                                         width=len(resolution_FOV_text))
-        resolution_FOV.grid(row=1, column=2, padx=2, pady=2)
-        self.resolution_FOV = ttk.Label(experimental_capabilities, text='No value yet',foreground='blue')
-        self.resolution_FOV.grid(row=1, column=3, padx=2, pady=2)
+        resolution_FOV.grid(row=1, column=0, padx=2, pady=2)
+        self.resolution_FOV_value = ttk.Label(experimental_capabilities, text='No value yet',foreground='blue')
+        self.resolution_FOV_value.grid(row=1, column=1, padx=2, pady=2)
         # resolution_V_FOV_text = '(V):'
         # resolution_V_FOV = ttk.Label(experimental_capabilities, text=resolution_V_FOV_text,anchor='e',
         #                         #   width=len(text_object_label2)
@@ -990,24 +1204,46 @@ class muDIC_GUI:
         # self.resolution_V_FOV = ttk.Label(experimental_capabilities, text='No value yet',foreground='blue')
         # self.resolution_V_FOV.grid(row=1, column=5, padx=2, pady=2)        
 ###########################################################################################
-        speckle_diam_text = 'Speckle size [mm]:'
-        speckle_diam = ttk.Label(experimental_capabilities, text=speckle_diam_text,anchor='e',
+
+
+
+
+
+        angle_of_view_H_text = 'Top angle of view [°]:'
+        angle_of_view_H_lab = ttk.Label(experimental_capabilities, text=angle_of_view_H_text,anchor='e',
                                 #   width=len(text_object_label2)
-                                        width=len(speckle_diam_text))
-        speckle_diam.grid(row=1, column=6, padx=2, pady=2)
+                                        width=len(angle_of_view_H_text))
+        angle_of_view_H_lab.grid(row=0, column=5, padx=2, pady=2)
 
-        self.speckle_diam_value = ttk.Label(experimental_capabilities, text='No value yet',foreground='blue')
-        self.speckle_diam_value.grid(row=1, column=7, padx=2, pady=2)        
+        self.angle_of_view_H_value = ttk.Label(experimental_capabilities, text='No value yet',foreground='blue')
+        self.angle_of_view_H_value.grid(row=0, column=6, padx=2, pady=2)   
 
-        distance_2_cams_text = '2 cameras dist. [m]:'
-        distance_2_cams = ttk.Label(experimental_capabilities, text=distance_2_cams_text,anchor='e',
+        angle_of_view_V_text = 'Side angle of view [°]:'
+        angle_of_view_V_lab = ttk.Label(experimental_capabilities, text=angle_of_view_V_text+'°',anchor='e',
                                 #   width=len(text_object_label2)
-                                        width=len(distance_2_cams_text))
-        distance_2_cams.grid(row=0, column=8, padx=2, pady=2)
+                                        width=len(angle_of_view_V_text))
+        angle_of_view_V_lab.grid(row=1, column=5, padx=2, pady=2)
 
-        self.distance_2_cams_value = ttk.Label(experimental_capabilities, text='No value yet',foreground='blue')
-        self.distance_2_cams_value.grid(row=0, column=9, padx=2, pady=2)        
+        self.angle_of_view_V_value = ttk.Label(experimental_capabilities, text='No value yet',foreground='blue')
+        self.angle_of_view_V_value.grid(row=1, column=6, padx=2, pady=2)   
 
+        overlap_length_V_text = 'Overlap length (V) [m]:'
+        overlap_length_V = ttk.Label(experimental_capabilities, text=overlap_length_V_text,anchor='e',
+                                #   width=len(text_object_label2)
+                                        width=len(overlap_length_V_text))
+        overlap_length_V.grid(row=1, column=7, padx=2, pady=2)
+
+        self.overlap_length_V_value = ttk.Label(experimental_capabilities, text='No value yet',foreground='blue')
+        self.overlap_length_V_value.grid(row=1, column=8, padx=2, pady=2)   
+
+        overlap_length_H_text = 'Overlap length (H) [m]:'
+        overlap_length_H = ttk.Label(experimental_capabilities, text=overlap_length_H_text,anchor='e',
+                                #   width=len(text_object_label2)
+                                        width=len(overlap_length_H_text))
+        overlap_length_H.grid(row=0, column=7, padx=2, pady=2)
+
+        self.overlap_length_H_value = ttk.Label(experimental_capabilities, text='No value yet',foreground='blue')
+        self.overlap_length_H_value.grid(row=0, column=8, padx=2, pady=2)   
 
 #####################################################################################
         ###################################################################
