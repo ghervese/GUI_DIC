@@ -49,8 +49,8 @@ class muDIC_GUI:
         self.mudicgui_version = 'v 0.1'
         self.DIC_settings = None
         self.DIC_results = None
-        # self.fig_setup_sketch = None
-
+        self.ax_sketch = None
+        self.Figurecanvas_fig_setup_sketch = None
     plt.rcParams['figure.figsize'] = [0.1, 0.1]
 
     def Close(self):
@@ -512,7 +512,7 @@ class muDIC_GUI:
             # print(str(self.H_FOV-np.float64((1.-np.float64(self.cover_pct_value.get())/100.)*self.H_FOV)))
             # print(np.float64((self.cover_pct_value.get()))/100.*self.H_FOV-np.float64((1.-np.float64(self.cover_pct_value.get())/100.)*self.H_FOV))
             #print(str(self.H_FOV-np.float64((self.cover_pct_value.get()))/100.*self.H_FOV))
-            self.plot_sketch()
+        self.plot_sketch()
 
 
     def plot_sketch(self):
@@ -531,9 +531,14 @@ class muDIC_GUI:
                     - FOV_min_pos = the location of the minimum value of the field of view of the considered camera
                     - FOV_max_pos = the location of the maximum value of the field of view of the considered camera
         """
+        if self.canvas_fig_setup_sketch is not None:
+            self.canvas_fig_setup_sketch.destroy()
+        self.H_FOV = np.float64(self.distance_to_target_value.get())*np.float64(self.sensor_size_H_value.get())/np.float64(self.focal_length_value.get())
+        self.V_FOV = np.float64(self.distance_to_target_value.get())*np.float64(self.sensor_size_V_value.get())/np.float64(self.focal_length_value.get())
         distance_2_cams_value = self.distance_2_cams
+        #distance_2_cams_value = (1.-np.float64(self.cover_pct_value.get())/100.)*self.H_FOV
         distance_to_target_value = np.float64(self.distance_to_target_value.get())
-        if self.cover_direction_value == 'Horizontal':
+        if self.cover_direction[self.list_combo_cover_direction.get()] == 'Horizontal':
             FOV_value = self.H_FOV
             overlap_length_value = self.overlap_length_H
         else:
@@ -541,9 +546,9 @@ class muDIC_GUI:
             overlap_length_value = self.overlap_length_V
         self.sketch_characteristics = {'camera_1': {'cam_pos': [0,0],
                                         'FOV_min_pos':[distance_to_target_value,-FOV_value/2-np.float64(self.cover_pct_value.get())/100*FOV_value/2],
-                                        'FOV_max_pos':[distance_to_target_value,FOV_value/2-np.float64(self.cover_pct_value.get())/100*FOV_value/2]},
+                                        'FOV_max_pos':[distance_to_target_value,FOV_value/2+np.float64(self.cover_pct_value.get())/100*FOV_value/2]},
                         'camera_2': {'cam_pos': [0,distance_2_cams_value],
-                        'FOV_min_pos':[distance_to_target_value,-FOV_value/2+distance_2_cams_value+np.float64(self.cover_pct_value.get())/100*FOV_value/2],
+                        'FOV_min_pos':[distance_to_target_value,-FOV_value/2+distance_2_cams_value-np.float64(self.cover_pct_value.get())/100*FOV_value/2],
                         'FOV_max_pos':[distance_to_target_value,FOV_value/2+distance_2_cams_value+np.float64(self.cover_pct_value.get())/100*FOV_value/2]},
                         'overlap': np.float64(self.cover_pct_value.get())*FOV_value/100,
                         'cam_nbr':np.int64(self.number_of_camera_text_value.get())}
@@ -553,14 +558,20 @@ class muDIC_GUI:
         #number_of_camera_text_value = np.float64(self.number_of_camera_text_value.get())
 
         #print(self.sketch_characteristics['cam_nbr'])
+
         if self.sketch_characteristics['cam_nbr']==1:
-            ax_sketch  = plt.figure()
-            # self.ax_sketch = plt.subplots(111)
-            # self.ax_sketch.get_autoscale_on()
+
+
+            self.ax_sketch  = plt.figure()
+            self.ax_sketch.clear()
+            self.ax_sketch.clf()
+            # self.self.self.ax_sketch = plt.subplots(111)
+            # self.self.self.ax_sketch.get_autoscale_on()
             fig_sketch = plt.figure(figsize=(21,72))
-            ax_sketch = fig_sketch.add_subplot(111)
+
+            self.ax_sketch = fig_sketch.add_subplot(111)
             # Plot the dimension between the two cams
-            ax_sketch.annotate(text='', xy=(self.sketch_characteristics['camera_1']['cam_pos'][0],
+            self.ax_sketch.annotate(text='', xy=(self.sketch_characteristics['camera_1']['cam_pos'][0],
                                     self.sketch_characteristics['camera_1']['cam_pos'][1]),
                         xytext=(
                             self.sketch_characteristics['camera_2']['cam_pos'][0],
@@ -568,32 +579,32 @@ class muDIC_GUI:
                             arrowprops=dict(arrowstyle='<->',
                                             shrinkA=0, shrinkB=0))
             middle_segment_dist_2_cams = (self.sketch_characteristics['camera_2']['cam_pos'][1]-self.sketch_characteristics['camera_1']['cam_pos'][1])/2
-            ax_sketch.text(x=self.sketch_characteristics['camera_1']['cam_pos'][0],y=middle_segment_dist_2_cams,s=str(distance_2_cams_value)+' m',rotation=90,rotation_mode = 'anchor',transform_rotates_text=True)
+            self.ax_sketch.text(x=self.sketch_characteristics['camera_1']['cam_pos'][0],y=middle_segment_dist_2_cams,s=str(np.round(distance_2_cams_value,2))+' m',rotation=90,rotation_mode = 'anchor',transform_rotates_text=True)
             # Plot the dimension between the cams and the focal plan
-            ax_sketch.annotate(text='', xy=(self.sketch_characteristics['camera_2']['cam_pos'][0],
+            self.ax_sketch.annotate(text='', xy=(self.sketch_characteristics['camera_2']['cam_pos'][0],
                                     self.sketch_characteristics['camera_2']['cam_pos'][1]/2),
                         xytext=(
                             self.sketch_characteristics['camera_2']['cam_pos'][0]+distance_to_target_value,
                                 self.sketch_characteristics['camera_2']['cam_pos'][1]/2),
                             arrowprops=dict(arrowstyle='<->', shrinkA=0, shrinkB=0))
             middle_segment_dist_to_target = (distance_to_target_value/2)
-            ax_sketch.text(x=middle_segment_dist_to_target,y=(self.sketch_characteristics['camera_2']['cam_pos'][1]-self.sketch_characteristics['camera_1']['cam_pos'][1])/2,s=str(distance_to_target_value)+' m',rotation=0,rotation_mode = 'anchor',transform_rotates_text=True)
+            self.ax_sketch.text(x=middle_segment_dist_to_target,y=(self.sketch_characteristics['camera_2']['cam_pos'][1]-self.sketch_characteristics['camera_1']['cam_pos'][1])/2,s=str(distance_to_target_value)+' m',rotation=0,rotation_mode = 'anchor',transform_rotates_text=True)
             
             # Plot the overlapping dimension
-            ax_sketch.annotate(text='', xy=(self.sketch_characteristics['camera_1']['FOV_max_pos'][0],
+            self.ax_sketch.annotate(text='', xy=(self.sketch_characteristics['camera_1']['FOV_max_pos'][0],
                                     self.sketch_characteristics['camera_1']['FOV_max_pos'][1]),
                         xytext=(
                             self.sketch_characteristics['camera_2']['FOV_min_pos'][0],
                                 self.sketch_characteristics['camera_2']['FOV_min_pos'][1]),
                             arrowprops=dict(arrowstyle='<->', shrinkA=0, shrinkB=0))
             # Plot the FOV length
-            ax_sketch.annotate('',xy=(self.sketch_characteristics['camera_1']['FOV_max_pos'][0],
+            self.ax_sketch.annotate('',xy=(self.sketch_characteristics['camera_1']['FOV_max_pos'][0],
                                 self.sketch_characteristics['camera_1']['FOV_max_pos'][1]),
                         xytext=(self.sketch_characteristics['camera_1']['FOV_min_pos'][0],
                                 self.sketch_characteristics['camera_1']['FOV_min_pos'][1]),
                             arrowprops=dict(arrowstyle='<->', shrinkA=0, shrinkB=0))
             middle_segment_FOV = (self.sketch_characteristics['camera_1']['FOV_min_pos'][1])/2
-            ax_sketch.text(x=distance_to_target_value,y=middle_segment_FOV,s=str(round(FOV_value,2))+' m',rotation=90,rotation_mode = 'anchor',transform_rotates_text=True)
+            self.ax_sketch.text(x=distance_to_target_value,y=middle_segment_FOV,s=str(round(FOV_value,2))+' m',rotation=90,rotation_mode = 'anchor',transform_rotates_text=True)
 
             x_values_seg_cam1_FOV_min = [self.sketch_characteristics['camera_1']['cam_pos'][0],self.sketch_characteristics['camera_1']['FOV_min_pos'][0]]
             y_values_seg_cam1_FOV_min = [self.sketch_characteristics['camera_1']['cam_pos'][1],self.sketch_characteristics['camera_1']['FOV_min_pos'][1]]
@@ -609,25 +620,29 @@ class muDIC_GUI:
             y_values_seg_cam2_FOV_max = [self.sketch_characteristics['camera_2']['cam_pos'][1],self.sketch_characteristics['camera_2']['FOV_max_pos'][1]]
 
 
-            ax_sketch.plot(x_values_seg_cam1_FOV_min,y_values_seg_cam1_FOV_min,'bo',linestyle='--')
-            ax_sketch.plot(x_values_seg_cam1_FOV_max,y_values_seg_cam1_FOV_max,'bo',linestyle='--')
-            ax_sketch.plot(x_values_seg_cam2_FOV_min,y_values_seg_cam2_FOV_min,'bo',linestyle='--')
-            ax_sketch.plot(x_values_seg_cam2_FOV_max,y_values_seg_cam2_FOV_max,'bo',linestyle='--')
+            self.ax_sketch.plot(x_values_seg_cam1_FOV_min,y_values_seg_cam1_FOV_min,'bo',linestyle='--')
+            self.ax_sketch.plot(x_values_seg_cam1_FOV_max,y_values_seg_cam1_FOV_max,'bo',linestyle='--')
+            self.ax_sketch.plot(x_values_seg_cam2_FOV_min,y_values_seg_cam2_FOV_min,'bo',linestyle='--')
+            self.ax_sketch.plot(x_values_seg_cam2_FOV_max,y_values_seg_cam2_FOV_max,'bo',linestyle='--')
 
             middle_segment_overlap= self.sketch_characteristics['camera_1']['FOV_max_pos'][1]
-            ax_sketch.text(x=distance_to_target_value,y=middle_segment_overlap,s='overlap '+str(overlap_length_value)+' m',rotation=0,rotation_mode = 'anchor',transform_rotates_text=True)
+            self.ax_sketch.text(x=distance_to_target_value,y=middle_segment_overlap,s='overlap '+str(overlap_length_value)+' m',rotation=0,rotation_mode = 'anchor',transform_rotates_text=True)
 
 
-            ax_sketch.set_xlim(-0.25, distance_to_target_value+0.25)
-            ax_sketch.set_ylim(self.sketch_characteristics['camera_1']['FOV_min_pos'][1]-0.25, self.sketch_characteristics['camera_2']['FOV_max_pos'][1]+0.25)
-            ax_sketch.text(x=self.sketch_characteristics['camera_1']['cam_pos'][0]-0.25,y=self.sketch_characteristics['camera_1']['cam_pos'][1]-0.25,s='Camera #1')
+            self.ax_sketch.set_xlim(-0.25, distance_to_target_value+0.25)
+            self.ax_sketch.set_ylim(self.sketch_characteristics['camera_1']['FOV_min_pos'][1]-0.25, self.sketch_characteristics['camera_2']['FOV_max_pos'][1]+0.25)
+            self.ax_sketch.text(x=self.sketch_characteristics['camera_1']['cam_pos'][0]-0.25,y=self.sketch_characteristics['camera_1']['cam_pos'][1]-0.25,s='Camera #1')
 
-            ax_sketch.text(x=self.sketch_characteristics['camera_2']['cam_pos'][0]-0.25,y=self.sketch_characteristics['camera_2']['cam_pos'][1]+0.25,s='Camera #2')
-            
+            self.ax_sketch.text(x=self.sketch_characteristics['camera_2']['cam_pos'][0]-0.25,y=self.sketch_characteristics['camera_2']['cam_pos'][1]+0.25,s='Camera #2')
+            self.ax_sketch.set_aspect('equal', 'box')
+
+
             self.canvas_fig_setup_sketch = tk.Canvas(self.experimental_sketch)
     #        self.canvas_FOV_ROI.pack(expand=1, fill='both')
+            
             self.canvas_fig_setup_sketch.pack(expand=1,fill='both')
             self.Figurecanvas_fig_setup_sketch = FigureCanvasTkAgg(figure=fig_sketch, master=self.canvas_fig_setup_sketch)
+
             self.Figurecanvas_fig_setup_sketch.draw()
             self.Figurecanvas_fig_setup_sketch.get_tk_widget().pack()
             # toolbar = NavigationToolbar2Tk(self.Figurecanvas_fig_setup_sketch,)
@@ -910,13 +925,17 @@ class muDIC_GUI:
         # preprocessing_frame.pack(expand=1,fill='x',padx=2, pady=2)
         
         self.experimental_sketch = ttk.LabelFrame(tab0, text='Sketch of exprimental setup')
+        
         # self.preview_first_image_frame.pack(expand=0, fill='x', padx=2, pady=2)
 
         experimental_capabilities = ttk.LabelFrame(tab0, text='Experimental capabilitie and speckle recommandation',height=100)
         # ROI_frame.pack(expand=1, fill='x', padx=2, pady=2)
 
+        # setup_properties.grid(row=0, column=0, sticky="nswe")
+        # self.experimental_sketch.grid(row=1, column=0, sticky="nswe",pady=2)
+        # experimental_capabilities.grid(row=2, column=0, sticky="nswe")
         setup_properties.grid(row=0, column=0, sticky="nswe")
-        self.experimental_sketch.grid(row=1, column=0, sticky="nswe")
+        self.experimental_sketch.grid(row=1, column=0, sticky="nswe",pady=2,rowspan=2)
         experimental_capabilities.grid(row=2, column=0, sticky="nswe")
 
 ############################################################################
@@ -1129,21 +1148,7 @@ class muDIC_GUI:
         #                     )
         self.canvas_fig_setup_sketch = tk.Canvas(self.experimental_sketch)
 #        self.canvas_FOV_ROI.pack(expand=1, fill='both')
-        self.canvas_fig_setup_sketch.pack(expand=1,fill='y')
-#         side_view_sketch = ttk.LabelFrame(experimental_sketch, text='Side view')
-#         # frame_to_plot.pack(anchor='n')
-#         # frame_to_plot.place(in_=field_frame,
-#         #                     x=5,
-#         #                     y=140
-#         #                     # y=140-pos_vert_frame
-#         #                     )
-#         self.canvas_side_view = tk.Canvas(side_view_sketch)
-# #        self.canvas_FOV_ROI.pack(expand=1, fill='both')
-#         self.canvas_side_view.pack()
-        # self.view_sketch.pack()
-        # self.view_sketch.grid(row=0, column=0, sticky="nsew")
-        # side_view_sketch.grid(row=0, column=1, sticky="nsew")
-
+        self.canvas_fig_setup_sketch.place(in_=self.experimental_sketch,height=24,width=18,relx=0.,x=2,rely=0.,y=2,anchor='n')
 
 ################################################################################################
 
