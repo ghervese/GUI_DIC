@@ -10,7 +10,7 @@ from tkinter import filedialog
 import os
 from matplotlib.patches import Rectangle
 import muDIC as dic
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageEnhance, ImageOps
 from matplotlib import image as mpimg
 from matplotlib.pyplot import connect
 from matplotlib.backend_bases import MouseButton
@@ -18,6 +18,11 @@ from matplotlib.patches import Rectangle
 from matplotlib.widgets  import RectangleSelector
 import matplotlib.collections as collections
 from pathlib import Path
+import pickle
+from skimage.color import rgb2gray
+import tifffile as tiff
+
+
 #######################################################################################################################################
 #                                            User friendly GUI for Digital Image Correlation with muDIC   
 #                                    V0.1 by Guillaume Hervé-Secourgeon // guillaume.herve-secourgeon[at]edf.fr
@@ -94,6 +99,8 @@ class muDIC_GUI:
         If the image is in true gray level, this is not a hypermatrix but a "simple" matrix with 1 digit for each pixel location.
         """
         self.preview = mpimg.imread(self.first_image_file)
+
+
         plt.clf()
         self.preview_selection = plt.figure(figsize=(15,2))
         
@@ -213,8 +220,8 @@ class muDIC_GUI:
 
     def image_stacking(self):
 #        self.image_stack = dic.image_stack_from_folder(self.FEM_source_selection_path,file_type=self.FEM_format_image)
-        self.image_stack = dic.image_stack_from_folder(self.FEM_source_selection_path,file_type=".tiff")
-
+        self.image_stack = dic.image_stack_from_folder(self.FEM_source_selection_path,file_type='.tiff')
+        print('Name of stacked images:', self.FEM_source_selection_path)
 
     def select_menu_num_images(self,event):
         self.num_images = self.list_combo_num_images.get()
@@ -228,6 +235,8 @@ class muDIC_GUI:
     def FEM_select_menu_format_image(self,event):
         self.format_image = self.list_combo_format_image.get()
 
+    def select_menu_format_image_input(self,event):
+        self.format_image_input = self.list_combo_format_image_input.get()
 
     def select_menu_FEM_type(self,event):
         self.FEM_type = self.list_combo_FEM_type.get()
@@ -246,6 +255,9 @@ class muDIC_GUI:
     def select_cover_direction(self,event):
         self.cover_direction_value = self.cover_direction[self.list_combo_cover_direction.get()]
 
+    def select_image_mode(self,event):
+        self.image_mode_value = self.image_mode[self.list_combo_image_mode.get()]
+
     def select_quantity_of_interest_to_plot(self,event):
         self.quantity_of_interest =  self.fields[self.list_combo_quantity_of_interest_to_plot.get()]
 
@@ -255,12 +267,18 @@ class muDIC_GUI:
     def select_text_units(self,event):
         self.text_units =  self.component[self.list_combo_text_units.get()]
 
+    def select_text_unitsTime(self,event):
+        self.text_unitsTime =  self.component[self.list_combo_text_unitsTime.get()]
+
+
     def FEM_generate(self):
         image = Image.open(self.FEM_first_image_file)
+        
         w, h = image.size
         # Caution : the image and the selection of the ROI is carried out based on the np.array
         # The matrix corresponding to the image has its vertical axes inverted compared to the image
         print('height:', h)
+        print('width:', w)
        
         xmax = max([np.float64(self.FEM_corner_1)[0],np.float64(self.FEM_corner_2)[0]])
         xmin = min([np.float64(self.FEM_corner_1)[0],np.float64(self.FEM_corner_2)[0]])
@@ -280,7 +298,7 @@ class muDIC_GUI:
         mesh_visu = self.mesher.mesh(self.image_stack,Xc1=xmin,Xc2=xmax,Yc1=ymin,Yc2=ymax,n_ely=nb_ely,n_elx=nb_elx, GUI=False)
         self.FEM_ax.vlines(mesh_visu.xnodes,min(mesh_visu.ynodes),max(mesh_visu.ynodes),color='r')
         self.FEM_ax.hlines(mesh_visu.ynodes,min(mesh_visu.xnodes),max(mesh_visu.xnodes),color='r')
-
+       
         self.FEM_fig_photo_first.get_tk_widget().destroy()
 
         self.FEM_fig_photo_first = FigureCanvasTkAgg(self.FEM_preview_selection, master=self.FEM_canvas_FOV_ROI)
@@ -311,6 +329,7 @@ class muDIC_GUI:
     def crop_images_to_ROI(self):
         self.nb_images_to_crop = np.int64(self.prepare_resize_ROI_files_entry.get())
         self.num_images = self.list_combo_num_images.get()
+
         for i in range(1,self.nb_images_to_crop+1):
             if len(self.num_images)==1:
                 num_image ="{:02n}".format(i)
@@ -330,22 +349,49 @@ class muDIC_GUI:
             #print(nom_image)
             image_entree = (self.first_image_file)
             
-            image = Image.open(image_entree) # On acquiert l'image
-            image_input = np.asarray(image)
+            image = Image.open(image_entree)
+            w, h = image.size
+            print('height:', h)
+            print('width:', w)
+            print('image size:',image.size)
 
-            x_min = np.int64(np.round(min(self.corner_1[1],self.corner_2[1])))
-            x_max = np.int64(np.round(max(self.corner_1[1],self.corner_2[1])))
-            y_min = np.int64(np.round(min(self.corner_1[0],self.corner_2[0])))
-            y_max = np.int64(np.round(max(self.corner_1[0],self.corner_2[0])))
+            #grayscale = rgb2gray(image)
+
+            # fig, axes = plt.subplots(1, 2, figsize=(8, 4))
+            # ax = axes.ravel()
+
+            # ax[0].imshow(image)
+            # ax[0].set_title("Original")
+            # ax[1].imshow(grayscale, cmap=plt.cm.gray)
+            # ax[1].set_title("Grayscale")
+
+            # fig.tight_layout()
+            # plt.show()
 
 
 
 
-            image_cut_on_ROI = image_input[x_min:x_max,y_min:y_max] 
+            # filter = ImageEnhance.Color(image)
+            # filter.enhance(0)
 
-            Image.fromarray(image_cut_on_ROI).save(self.output_path +'/' +self.prefix_ROI_files_entry.get() +num_image + self.format_image)
+            print()
+
+            y_max = np.int64(np.round(max(self.corner_1[1],self.corner_2[1])))
+            y_min = np.int64(np.round(min(self.corner_1[1],self.corner_2[1])))
+            x_min = np.int64(np.round(min(self.corner_1[0],self.corner_2[0])))
+            x_max = np.int64(np.round(max(self.corner_1[0],self.corner_2[0])))
+            
+            left = x_min
+            right = x_max
+            upper = y_min
+            lower = y_max
+            print(image.getbbox())
+ 
+            image_cut_on_ROI  = image.crop((left, upper,right,lower))
+            #image_cut_on_ROI.save(self.output_path +'/' +self.prefix_ROI_files_entry.get() +num_image + self.format_image)
+            image_cut_on_ROI.save(self.output_path +'/' +self.prefix_ROI_files_entry.get() +num_image + self.format_image)
             if i == (self.nb_images_to_crop):
-                print('Images have all been cropped !')
+                print(str(self.nb_images_to_crop),' images have been cropped !')
 
     def create_output_folder(self):
         output_dir = self.output_ROI_dir_entry.get()
@@ -355,6 +401,7 @@ class muDIC_GUI:
         else:
             os.mkdir(self.output_path)
         print(self.output_path)
+
 
     def FEM_mesh_prop_gen(self):
         self.mesher = dic.Mesher(deg_e=2, deg_n=2,type=self.list_FEM_type)
@@ -366,8 +413,8 @@ class muDIC_GUI:
         self.DIC_settings.maxit = int(np.int64(self.iteration_entry.get()))
         self.DIC_settings.tom = np.float64(self.convergence.get())
         self.DIC_settings.interpolation_order = int(np.int64(self.order_interp.get()))
-        self.DIC_settings.store_internals=self.temp_store_internals
-        self.DIC_settings.noconvergence = "ignore"
+        self.DIC_settings.store_internals = self.temp_store_internals
+        self.DIC_settings.noconvergence = self.list_combo_no_convergence_options.get()
 
 
 
@@ -450,9 +497,16 @@ class muDIC_GUI:
     def plot_fields(self,selected_frame=int):
         print('toto')
 
+
     def select_ref_length(self):
         print('ref_length')
 
+
+#     def load_mesh(self):
+#         print('ref_length')
+#         mesh_file=filedialog.askopenfilename(initialdir=self.FEM_select_images_folder,defaultextension='.dmsh')
+#         #file_pi2 = open(mesh_file, 'r') 
+#         self.mesh = pickle.load(mesh_file)
 
     def cal_residual(self,disp_pixel_one_frame):
         """
@@ -461,7 +515,22 @@ class muDIC_GUI:
         print("calc_residual")
 
     def plot_fringe(self):
-        print('plot fringe')
+        """
+        This method extract the fringes of different fields of quantity of interest.
+        Args:
+            quantityOfInterest: String: The quantity of interest
+            component : tuple: the component of the quantity of interest
+            unitChoice : string: the units that is chosen by the user : pixels or a metric unit (mm, cm, m)
+            framesToPlot : array: The number of frames that are to be plotted : allFrame, frameSet or oneFrame
+            fieldRange : Array: the kind of range that is considered : dynamicRange, staticRange or customRange.
+        Returns:
+            An hypermatrix that contains each field corresponding to specific frames (instants) of a quantity of interest and its associated component
+
+        """
+        # First getting all the necessary arguments
+        quantityOfInterest=self.list_combo_quantity_of_interest_to_plot.get()
+        component = self.list_combo_component_quantity_of_interest_to_plot.get()
+        self.extract_fields_per_frame
 
     def compute_test_char(self):
         print('Compute test characteristics')
@@ -476,6 +545,7 @@ class muDIC_GUI:
         # print(self.resolution_V_FOV)
         # self.definition_FOV_value.configure(text=str(round(np.float64(self.H_FOV),3))+' m')
         self.resolution_FOV_value.configure(text=str(round(1./(np.float64(self.pixel_numer_V_cam_value.get())/self.V_FOV/1000.),3))+' mm/px')
+        self.value_scale_DIC.configure(text=str(round(1./(np.float64(self.pixel_numer_V_cam_value.get())/self.V_FOV/1000.),3))+' mm/px')
         self.definition_FOV_value.configure(text=str(round(1./(np.float64(self.pixel_numer_V_cam_value.get())/self.V_FOV/1000.)*np.float64(self.smallest_size_text_value.get()),3)))
         def_FOV = (np.float64(self.pixel_numer_V_cam_value.get())/self.V_FOV/1000.)
         self.speckle_diam_value.configure(text=str(round(np.float64(self.nb_pixel_per_spot_value.get())/np.float64(def_FOV),1)))
@@ -506,6 +576,7 @@ class muDIC_GUI:
             self.distance_2_cams = round((1.-np.float64(self.cover_pct_value.get())/100.)*self.H_FOV,2)
             #print(self.distance_2_cams)
             self.distance_2_cams_value.configure(text=str(self.distance_2_cams))
+
             # print(str(self.H_FOV))
             # print(str(np.float64((self.cover_pct_value.get()))/100.*self.H_FOV))
             # print(str(np.float64(self.cover_pct_value.get())/100.))
@@ -658,6 +729,12 @@ class muDIC_GUI:
             # self.fig_photo_first.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
 
+    def save_DIC_results(self):
+
+        print('ref_length')
+        DIC_results_file = filedialog.asksaveasfile(mode='w',confirmoverwrite=True,initialdir=self.FEM_select_images_folder,defaultextension='.rdic')
+#        file_mesh = open(mesh_file, 'w') 
+        pickle.dump(self.DIC_results, DIC_results_file)
 
 
 
@@ -681,12 +758,8 @@ class muDIC_GUI:
                          , fill='both'
                          )
 
-
-
-
-
         tab0 = ttk.Frame(tab_control)
-        tab_control.add(tab0, text='Test campaign preparation')
+        tab_control.add(tab0, text='Test characteristics')
         tab_control.pack(expand=1
                          , fill='both'
                          )
@@ -1020,8 +1093,6 @@ class muDIC_GUI:
                                 #   width=len(text_object_label2)
                                         width=len(camera_type_text))
         camera_type.grid(row=0, column=0, padx=2, pady=2)
-       # list of the supported FEM - For the moment only Q4 are supported
-        #self.list_quantity_of_interest_to_plot = ['True strain','Deformation gradient','Engineering strain','Displacement','Coordinates','Green strain']
         self.list_camera_type = list(self.camera_type_dict.keys())
         # creation comboBox
         self.list_combo_camera_type=ttk.Combobox(setup_properties, values=self.list_camera_type,width=5)
@@ -1271,6 +1342,10 @@ class muDIC_GUI:
         ROI_frame.grid(row=2, column=0, sticky="nswe")
 
 
+
+
+
+
         #preprocessing_frame.grid_columnconfigure(0, weight=1)
         #preprocessing_frame.grid_rowconfigure(0,weight=1)
 
@@ -1283,6 +1358,10 @@ class muDIC_GUI:
 
         import_first_image_button = tk.Button(preprocessing_frame,text = "3-View first image", command = self.first_image_view)
         import_first_image_button.grid(row=0, column=2, padx=2, pady=2)
+
+
+
+
 
 
         # self.FRAME_for_icone=tk.Frame(frame_for_button_and_icone, width=10, height =10)
@@ -1314,7 +1393,7 @@ class muDIC_GUI:
 
 
         select_ROI_button = tk.Button(ROI_frame,text = "Select zone to crop", command = self.select_ROI_rectangle)
-        select_ROI_button.grid(row=0, column=4, padx=2, pady=2)
+        select_ROI_button.grid(row=1, column=4, padx=2, pady=2)
 
         # show_ROI_button = tk.Button(ROI_frame,text = "Apply ROI selection", command = self.plot_ROI_on_fig)
         # show_ROI_button.grid(row=0, column=1,columnspan=2, padx=2, pady=2)
@@ -1402,12 +1481,48 @@ class muDIC_GUI:
 
         #prepare_resize_ROI_button = tk.Button(ROI_frame,text = "Generate default output directory", command=lambda:[self.create_output_folder, get_number_of_files()])
         prepare_resize_ROI_button1 = tk.Button(ROI_frame,text = "Create output dir.", command=self.create_output_folder)
-        prepare_resize_ROI_button1.grid(row=1, column=4, padx=2, pady=2)
+        prepare_resize_ROI_button1.grid(row=1, column=5, padx=2, pady=2)
+
+
+
+        self.image_mode = {}
+        self.image_mode['1-bit pixels, black and white, stored with one pixel per byte'] = '1'
+        self.image_mode['8-bit pixels, grayscale']='L'
+        self.image_mode['8-bit pixels, mapped to any other mode using a color palette'] = 'P'
+        self.image_mode['3x8-bit pixels, true color']='RGB'
+        self.image_mode['4x8-bit pixels, true color with transparency mask'] = 'RGBA'
+        self.image_mode['4x8-bit pixels, color separation']='CYMK'
+        self.image_mode['3x8-bit pixels, color video format']='YCbCr'
+        self.image_mode['3x8-bit pixels, the L*a*b color space']='LAB'
+        self.image_mode['3x8-bit pixels, Hue, Saturation, Value color space']='HSV'
+        self.image_mode['32-bit signed integer pixels']='I'
+        self.image_mode['32-bit floating point pixels']='F'
+
+        image_mode_text = 'Output image mode:'
+        image_mode = ttk.Label(ROI_frame, text=image_mode_text,anchor='e',
+                                #   width=len(text_object_label2)
+                                        width=len(image_mode_text))
+        image_mode.grid(row=0, column=4, padx=2, pady=2)
+       # list of the supported FEM - For the moment only Q4 are supported
+        #self.list_quantity_of_interest_to_plot = ['True strain','Deformation gradient','Engineering strain','Displacement','Coordinates','Green strain']
+        self.list_image_mode = list(self.image_mode.keys())
+        # creation comboBox
+        self.list_combo_image_mode=ttk.Combobox(ROI_frame, values=self.list_image_mode,width=40)
+        default_image_mode = 4
+        self.list_combo_image_mode.current(default_image_mode)
+        #Position de la ComboBox
+
+        # Attribution of default value in case the user is satisfied with the proposed one
+        self.list_combo_image_mode.bind("<<ComboboxSelected>>",self.select_image_mode)
+
+        self.list_combo_image_mode.grid(row=0, column=5, padx=2, pady=2)
+
+
 
         myFont = font.Font(weight="bold")
         resize_ROI_button = tk.Button(ROI_frame,text = "Export", command=self.crop_images_to_ROI,foreground='white',background='blue')
         resize_ROI_button['font'] = myFont
-        resize_ROI_button.grid(row=2, column=4, padx=2, pady=2)
+        resize_ROI_button.grid(row=2, column=6, padx=2, pady=2)
 
 
 ##################################################################################################
@@ -1427,6 +1542,25 @@ class muDIC_GUI:
 
         # LABEL=ttk.Label(self.FRAME_for_icone, text=self.text_icone,font=('Helvetica', 18,'bold','italic'),foreground='blue').pack()
 
+        # list of the supported numbering types
+        # Menu to select the numbering of the stack of images
+        FEM_text_format_image_input = 'Type of the images:'
+        FEM_format_image_input = ttk.Label(FEM_frame, text=FEM_text_format_image_input,anchor='e',width=len('per Finite Element side:')
+                                #  ,width=len(text_format_image)
+                                 )
+        FEM_format_image_input.grid(row=0, column=3, padx=2, pady=2)
+
+
+        self.list_format_image_input = ['.tif','.tiff','.png']
+        # creation comboBox
+        self.list_combo_format_image_input=ttk.Combobox(FEM_frame, values=self.list_format_image_input,width=5)
+        default_format_image_input = 2
+        self.list_combo_format_image.current(default_format_image_input)
+        #Position de la ComboBox
+        self.list_combo_format_image_input.grid(row=0, column=4, padx=2, pady=2)
+        # Attribution of default value in case the user is satisfied with the proposed one
+        self.format_image_input = self.list_format_image_input[default_format_image]
+        self.list_combo_format_image_input.bind("<<ComboboxSelected>>",self.select_menu_format_image_input)
 
 
 
@@ -1447,20 +1581,20 @@ class muDIC_GUI:
         FEM_nb_stack_images = ttk.Label(FEM_frame, text=FEM_nb_stack_images,anchor='e',
                                 #   width=len(text_object_label2)
                                         width=len('per Finite Element side:'))
-        FEM_nb_stack_images.grid(row=0, column=3, padx=2, pady=2)
+        FEM_nb_stack_images.grid(row=0, column=5, padx=2, pady=2)
         self.FEM_nb_stack_images = ttk.Entry(FEM_frame,width=5)
         self.FEM_nb_stack_images.insert(0, 10)
 
-        self.FEM_nb_stack_images.grid(row=0, column=4, padx=2, pady=2)
+        self.FEM_nb_stack_images.grid(row=0, column=6, padx=2, pady=2)
 
         FEM_text_chose_path_button = "4-Stack images"
         FEM_chose_path_button = tk.Button(FEM_frame, text=FEM_text_chose_path_button, command=self.image_stacking
                                     #    , width=len(text_chose_path_button)
                                        )
-        FEM_chose_path_button.grid(row=0, column=5, padx=2, pady=2)
+        FEM_chose_path_button.grid(row=0, column=7, padx=2, pady=2)
         
         FEM_select_ROI_button = tk.Button(FEM_frame,text = "5-Define ROI on screen", command = self.FEM_select_ROI_rectangle)
-        FEM_select_ROI_button.grid(row=0, column=6, padx=2, pady=2)
+        FEM_select_ROI_button.grid(row=0, column=8, padx=2, pady=2)
 
 
 
@@ -1547,14 +1681,23 @@ class muDIC_GUI:
 
 
 
-        FEM_text_mesh_prop_button = "Generate FEM mesh properties"
+        FEM_text_mesh_prop_button = "6-Generate FEM mesh properties"
         FEM_mesh_prop_button = tk.Button(FEM_ROI_frame, text=FEM_text_mesh_prop_button, command=self.FEM_mesh_prop_gen
                                     #    , width=len(text_chose_path_button)
                                        )
         FEM_mesh_prop_button.grid(row=0, column=4,  padx=2, pady=2)
 
-        FEM_generate_button = tk.Button(FEM_ROI_frame,text = "Create mesh", command = self.FEM_generate)
+        FEM_generate_button = tk.Button(FEM_ROI_frame,text = "7-Create mesh", command = self.FEM_generate)
         FEM_generate_button.grid(row=1, column=4, padx=2, pady=2)
+
+
+        # FEM_generate_button = tk.Button(FEM_ROI_frame,text = "Save mesh", command = self.save_mesh)
+        # FEM_generate_button.grid(row=0, column=5, padx=2, pady=2)
+
+
+        # FEM_generate_button = tk.Button(FEM_ROI_frame,text = "Load mesh", command = self.load_mesh)
+        # FEM_generate_button.grid(row=1, column=5, padx=2, pady=2)
+
 
 
 #########################################################################################
@@ -1577,7 +1720,7 @@ class muDIC_GUI:
 
 
 
-        FEM_generate_settings = tk.Button(DIC_solver_frame,text = "Generate DIC settings", command = self.DIC_generate_settings)
+        FEM_generate_settings = tk.Button(DIC_solver_frame,text = "8-Generate DIC settings", command = self.DIC_generate_settings)
         FEM_generate_settings.grid(row=0, column=6, padx=2, pady=2)
 
 
@@ -1618,7 +1761,7 @@ class muDIC_GUI:
         self.temp_store_internals = True
         self.list_combo_store_internal_var.bind("<<ComboboxSelected>>",self.select_menu_store_internal_var)
 
-        prepare_DIC_analysis = tk.Button(DIC_solver_frame,text = "Prepare analysis", command = self.prepare_DIC_analysis)
+        prepare_DIC_analysis = tk.Button(DIC_solver_frame,text = "9-Prepare analysis", command = self.prepare_DIC_analysis)
         prepare_DIC_analysis.grid(row=1, column=6, padx=2, pady=2)
 
 
@@ -1630,7 +1773,13 @@ class muDIC_GUI:
         # "Run "+u"\N{GREEK SMALL LETTER MU}"+"DIC"
         # Define font
         launch_DIC_analysis['font'] = myFont
-        launch_DIC_analysis.grid(row=2, column=6, padx=2, pady=2)
+        launch_DIC_analysis.grid(row=2, column=4, padx=2, pady=2)
+
+
+        save_DIC_results_button = tk.Button(DIC_solver_frame,text = "Save DIC results", command = self.save_DIC_results)
+        save_DIC_results_button.grid(row=2, column=6, padx=2, pady=2)
+
+
 
 
         no_convergence_options = 'Action if no convergence:'
@@ -1642,13 +1791,19 @@ class muDIC_GUI:
         self.list_no_convergence_options = ["ignore", "update", "break"]
         # creation comboBox
         self.list_combo_no_convergence_options=ttk.Combobox(DIC_solver_frame, values=self.list_no_convergence_options,width=5)
-        default_no_convergence_options = 0
+        default_no_convergence_options = 1
         self.list_combo_no_convergence_options.current(default_no_convergence_options)
         #Position de la ComboBox
         self.list_combo_no_convergence_options.grid(row=2, column=1, padx=2, pady=2)
         # Attribution of default value in case the user is satisfied with the proposed one
         self.list_combo_no_convergence_options.bind("<<ComboboxSelected>>",self.select_menu_no_convergence_options)
 
+        
+        order_interp = ttk.Label(DIC_solver_frame, text='Interpolation order:')
+        order_interp.grid(row=1, column=4, padx=2, pady=2)
+        self.order_interp = ttk.Entry(DIC_solver_frame,width=6)
+        self.order_interp.insert(0, 2)
+        self.order_interp.grid(row=1, column=5, padx=2, pady=2)
 
 #####################################################################################
         ####################################################################
@@ -1696,9 +1851,9 @@ class muDIC_GUI:
         #                     # y=pos_vert_frame,
         #                     x=610
         #                     )
-        field_to_plot.grid(row=0, column=0, sticky="ns")
-        frame_to_plot.grid(row=0, column=1, sticky="nsew")
-        range_to_plot.grid(row=0, column=2, sticky="ns")
+        field_to_plot.grid(row=0, column=0, sticky="nsew")
+        frame_to_plot.grid(row=0, column=2, sticky="nsew")
+        range_to_plot.grid(row=0, column=1, sticky="nsew")
 
 
 
@@ -1709,12 +1864,15 @@ class muDIC_GUI:
 ############################################################################################
         self.fields = {}
         self.fields['True strain']='true_strain()'
-        self.fields['Deformation gradient']='F()'
+        self.fields['Green strain']='green_strain()'
         self.fields['Engineering strain']='eng_strain()'
+        self.fields['Deformation gradient']='F()'
         self.fields['Displacement']='disp()'
         self.fields['Coordinates']='coords()'
-        self.fields['Green strain']='green_strain()'
-        
+        self.fields['Velocity']='velocity'
+        self.fields['Acceleration']='acceleration'
+        self.fields['Residue']='residue'
+
         text_quantity_of_interest_to_plot = 'Quantity of interest:'
         quantity_of_interest_to_plot = ttk.Label(field_to_plot, text=text_quantity_of_interest_to_plot,anchor='e',width=len(text_quantity_of_interest_to_plot)
                              )
@@ -1723,7 +1881,7 @@ class muDIC_GUI:
         self.list_quantity_of_interest_to_plot = list(self.fields.keys())
         # creation comboBox
         self.list_combo_quantity_of_interest_to_plot=ttk.Combobox(field_to_plot, values=self.list_quantity_of_interest_to_plot,width=len('Deformation gradient'))
-        default_quantity_of_interest_to_plot = 3
+        default_quantity_of_interest_to_plot = 4
         self.list_combo_quantity_of_interest_to_plot.current(default_quantity_of_interest_to_plot)
         #Position de la ComboBox
 
@@ -1792,19 +1950,7 @@ class muDIC_GUI:
         self.list_combo_text_units.bind("<<ComboboxSelected>>",self.select_text_units)
 
 
-
-        pick_ref_length_object = tk.Button(field_to_plot,text = "Pick ref. on-screen", command = self.select_ref_length)
-        pick_ref_length_object.grid(row=5, column=0, padx=2, pady=2)
-
-
-        label_ref_length = ttk.Label(field_to_plot, text='Ref. length:')
-        label_ref_length.grid(row=4, column=0, padx=2, pady=2)
-
-        self.value_ref_length = ttk.Entry(field_to_plot,width=5)
-        self.value_ref_length.insert(0, 0.15)
-        self.value_ref_length.grid(row=4, column=1, padx=2, pady=2)
-
-        label_scale_DIC = ttk.Label(field_to_plot, text='Scale value:')
+        label_scale_DIC = ttk.Label(field_to_plot, text='Scale value(*):')
 
         label_scale_DIC.grid(row=6, column=0, padx=2, pady=2)
         self.value_scale_DIC = ttk.Label(field_to_plot, text='No scale yet',foreground='blue')
@@ -1813,8 +1959,45 @@ class muDIC_GUI:
 
 
 
+        label_ref_length = ttk.Label(field_to_plot, text='Time step:',anchor='e',width=len('Time unit'))
+        label_ref_length.grid(row=0, column=3, padx=2, pady=2)
+
+        self.value_ref_length = ttk.Entry(field_to_plot,width=5)
+        self.value_ref_length.insert(0, 0.01)
+        self.value_ref_length.grid(row=0, column=4, padx=2, pady=2)
+
+        labelScaleGetProp = tk.Label(field_to_plot, text='(*) Get this value through the \"Test characteristics\" tab',font=('Helvetica', 7,'italic'))
+
+        labelScaleGetProp.grid(row=7, column=0, padx=2, pady=2)
 
 
+
+        self.unitsTime = {}
+        self.unitsTime['s']='s'
+        self.unitsTime['ms']='ms'
+
+        text_unitsTime = 'Time unit:'
+        text_unitsTime = ttk.Label(field_to_plot, text=text_unitsTime,anchor='e',width=len('Time unit')
+                             )
+        text_unitsTime.grid(row=2, column=3, padx=2, pady=2)
+       # list of the supported FEM - For the moment only Q4 are supported
+        self.list_text_unitsTime = list(self.unitsTime.keys())
+        #['Disp-x','Disp-y','xx','xy','yy']
+        # creation comboBox
+        self.list_combo_text_unitsTime=ttk.Combobox(field_to_plot, values=self.list_text_unitsTime,width=5)
+        default_text_unitsTime = 0
+        self.list_combo_text_unitsTime.current(default_text_unitsTime)
+        #Position de la ComboBox
+        self.list_combo_text_unitsTime.grid(row=2, column=4, padx=2, pady=2)
+        # Attribution of default value in case the user is satisfied with the proposed one
+        self.list_combo_text_unitsTime.bind("<<ComboboxSelected>>",self.select_text_unitsTime)
+
+        myFont = font.Font(weight="bold")
+        visualize_field = tk.Button(field_to_plot,text = "Plot fringe", bg='Blue', fg='White', command = self.plot_fringe)
+        # "Run "+u"\N{GREEK SMALL LETTER MU}"+"DIC"
+        # Define font
+        visualize_field['font'] = myFont
+        visualize_field.grid(row=7,column=1,padx=2,pady=2)
 
 
 ################################################
@@ -1878,63 +2061,36 @@ class muDIC_GUI:
         row_pos_custom = 3
         col_pos_custom = 0
         self.range_view = tk.IntVar(value=1)
-        ttk.Radiobutton(range_to_plot,text='Static range of min-max values',variable=self.range_view, value=1).grid(row=row_pos_custom-2, column=col_pos_custom, padx=2, pady=2)
-        ttk.Radiobutton(range_to_plot,text='Custom range of min-max values',variable=self.range_view, value=3).grid(row=row_pos_custom, column=col_pos_custom, padx=2, pady=2)
-        ttk.Radiobutton(range_to_plot,text='Dynamic range of min-max values',variable=self.range_view, value=2).grid(row=row_pos_custom-1, column=col_pos_custom, padx=2, pady=2)
+        ttk.Radiobutton(range_to_plot,text='Static range',variable=self.range_view, value=1).grid(row=0, column=0, padx=2, pady=2)
+        ttk.Radiobutton(range_to_plot,text='Custom range',variable=self.range_view, value=3).grid(row=1, column=0, padx=2, pady=2)
+        ttk.Radiobutton(range_to_plot,text='Dynamic range',variable=self.range_view, value=2).grid(row=0, column=1, padx=2, pady=2)
         
         range_min_value = ttk.Label(range_to_plot, text='Custom min:',anchor='center',width=len('Custom min:   ')
                             #  , width=len(text_FEM_type)
                              )
-        col_pos_min = col_pos_custom+1
-        col_pos_max = col_pos_custom+2
-        range_min_value.grid(row=row_pos_custom+1, column=col_pos_min-1, padx=4, pady=2)
+
+        range_min_value.grid(row=1, column=1, padx=4, pady=2)
         # range_min_value.place(in_=range_to_plot,x=5,y=100)
         range_max_value = ttk.Label(range_to_plot, text='Custom max:',anchor='center',width=len('Custom max:   ')
                             #  , width=len(text_FEM_type)
                              )
 
-        range_max_value.grid(row=row_pos_custom+1, column=col_pos_max-1, padx=4, pady=2)
+        range_max_value.grid(row=2, column=1, padx=4, pady=2)
         #range_max_value.place(in_=range_to_plot,x=200,y=100)
         
-        
-        
-        if self.DIC_results is not None:
-            scale_min_value = tk.Scale(range_to_plot,from_=self.min_value_quantity_of_interest,to=self.max_value_quantity_of_interest,
-                                        tickinterval=1000,
-                                        orient='horizontal',
-                                        sliderlength=len('Custom max:   '),
-                                        )
-            # ttk.Spinbox(frame_to_plot, from_=0, to=self.min_value_quantity_of_interest,width=6)
-            scale_max_value = tk.Scale(range_to_plot, from_=self.min_value_quantity_of_interest, to=self.max_value_quantity_of_interest,
-                                        tickinterval=1000,
-                                        orient='horizontal',
-                                        sliderlength=len('Custom max:   '),
-                                        )
 
-        else:
-            scale_min_value = tk.Scale(range_to_plot,from_=-10.,to=0.,
-                                        tickinterval=1000,
-                                        orient='horizontal',
-                                        sliderlength=len('Custom min:   '),
-                                        )
 
+        
+        self.scale_min_value = ttk.Entry(range_to_plot,width=5)
+        self.scale_min_value.insert(0, -10.)
             # ttk.Spinbox(frame_to_plot, from_=0, to=self.min_value_quantity_of_interest,width=6)
-            scale_max_value = tk.Scale(range_to_plot, from_=-10., to=0.,
-                                        tickinterval=1000,
-                                        orient='horizontal',
-                                        sliderlength=len('Custom max:   '),
-                                        )
+        self.scale_max_value = ttk.Entry(range_to_plot,width=5)
+        self.scale_max_value.insert(0, +10.)
         # scale_min_value.place(in_=range_to_plot,x=5+len('Min   ')+5,y=100)
-        scale_min_value.grid(row=row_pos_custom+2, column=col_pos_min-1, padx=4, pady=2)
-        scale_max_value.grid(row=row_pos_custom+2, column=col_pos_max-1, padx=4, pady=2)
+        self.scale_min_value.grid(row=1, column=2, padx=4, pady=2)
+        self.scale_max_value.grid(row=2, column=2, padx=4, pady=2)
 
 
-        myFont = font.Font(weight="bold")
-        visualize_field = tk.Button(range_to_plot,text = "Plot fringe", bg='Blue', fg='White', command = self.plot_fringe)
-        # "Run "+u"\N{GREEK SMALL LETTER MU}"+"DIC"
-        # Define font
-        visualize_field['font'] = myFont
-        visualize_field.grid(row=row_pos_custom+3,column=col_pos_max-1,padx=2,pady=2)
 
         self.view_postpro_local_and_fields = ttk.LabelFrame(tab3, text='Post-processing viewer')
         self.view_postpro_local_and_fields.grid(row=1, column=0, sticky='nswe')
