@@ -1,0 +1,19 @@
+You have to install muDIC : pip install muDIC
+The application needs first the following class that are necessary for muDIC :
+numba
+scipy
+imageio
+matplotlib
+numpy
+Pillow
+dill
+nose
+scikit-image
+codecov
+coverage
+pytest
+pytest-cov
+natsort
+noise
+It is recommended to create a virtual environment. As per muDIC, GUI_DIC that encapsulates muDIC_GUI requires at least python 3.7.
+
