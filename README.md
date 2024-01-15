@@ -1,4 +1,4 @@
-_*muDIC_GUI*_  
+                                          _*muDIC_GUI*_  
 muDIC_GUI is a GUI environment dedicated to Digital Image Correlation carried out with muDIC class: <https://linkinghub.elsevier.com/retrieve/pii/S2352711019301967>.  This class is called through Tab 4.
 It is divide in 8 tabs. You can use them one after another, or indepently.
 1. Tab 0 is informative. It provides all the features of the application. Some are not implemented at that moment. Especially for the half of tab 5 and the entire tabs 6 and 7.
